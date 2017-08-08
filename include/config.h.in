@@ -1,0 +1,7 @@
+#ifndef _CONFIG_H_
+#define _CONFIG_H_
+
+#define tibank_VERSION_MAJOR @NETASK_VERSION_MAJOR@
+#define tibank_VERSION_MINOR @NETASK_VERSION_MINOR@
+
+#endif // _CONFIG_H_
