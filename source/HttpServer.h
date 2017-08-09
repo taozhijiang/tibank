@@ -14,6 +14,8 @@
 #include "ThreadPoolHelper.h"
 #include "HttpHandler.h"
 
+#include "EQueue.h"
+
 typedef boost::function<int (const std::string& post_data, std::string& response, string& status)> HttpPostHandler;
 
 class HttpServer : public boost::noncopyable,
@@ -40,14 +42,25 @@ private:
 
     std::map<std::string, HttpPostHandler> http_post_handler_;
 
+private:
     boost::mutex net_conns_mutex_;
     std::set<net_conn_ptr> net_conns_;
+
+	EQueue<net_conn_weak> pending_to_remove_;
+
+public:
+	int add_net_conn_to_remove(net_conn_ptr conn_ptr) {
+		pending_to_remove_.PUSH(net_conn_weak(conn_ptr));
+	}
+
+	ThreadPoolHelper net_conn_remove_threads_;
+	void net_conn_remove_run(ThreadObjPtr ptr);
+	int net_conn_remove_stop_graceful();
 
 public:
     ThreadPoolHelper io_service_threads_;
     void io_service_run(ThreadObjPtr ptr);	// main task loop
-
-	int stop_graceful();
+	int io_service_stop_graceful();
 };
 
 #endif //_TiBANK_HTTP_SERVER_H_

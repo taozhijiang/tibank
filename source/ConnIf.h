@@ -1,6 +1,8 @@
 #ifndef _TiBANK_CONN_IF_HPP_
 #define _TiBANK_CONN_IF_HPP_
 
+#include "Log.h"
+
 enum ConnStat {
     kConnWorking = 1,
     kConnPending,
@@ -61,8 +63,6 @@ public:
         sock_ptr_->shutdown(s_type, ignore_ec);
     }
 
-
-protected:
     enum ConnStat get_conn_stat() { return conn_stat_; }
     void set_conn_stat(enum ConnStat stat) { conn_stat_ = stat; }
 

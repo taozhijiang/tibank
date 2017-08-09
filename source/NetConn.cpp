@@ -163,13 +163,13 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 
         return;
 
-    } else if (ec != boost::asio::error::operation_aborted) {
+    } else {
 
-        log_error( "READ ERROR FOUND: %d", ec);
-
-        boost::system::error_code ignored_ec;
-        sock_ptr_->shutdown(boost::asio::ip::tcp::socket::shutdown_receive, ignored_ec);
-        sock_ptr_->cancel();
+		if (handle_socket_ec(ec)) {
+			boost::system::error_code ignored_ec;
+			sock_ptr_->shutdown(boost::asio::ip::tcp::socket::shutdown_receive, ignored_ec);
+			sock_ptr_->cancel();
+		}
 
         return;
     }
@@ -223,15 +223,15 @@ void NetConn::read_body_handler(const boost::system::error_code& ec, size_t byte
         }
 
         // default, OK
-        goto write_return;
+		// go through write return;
 
-    } else if (ec != boost::asio::error::operation_aborted) {
+	} else {
 
-        log_error( "READ ERROR FOUND: %d", ec);
-
-        boost::system::error_code ignored_ec;
-        sock_ptr_->shutdown(boost::asio::ip::tcp::socket::shutdown_receive, ignored_ec);
-        sock_ptr_->cancel();
+		if (handle_socket_ec(ec)) {
+			boost::system::error_code ignored_ec;
+			sock_ptr_->shutdown(boost::asio::ip::tcp::socket::shutdown_receive, ignored_ec);
+			sock_ptr_->cancel();
+		}
 
         return;
     }
@@ -241,7 +241,6 @@ write_return:
 
     // 同上
     start();
-
     return;
 }
 
@@ -260,13 +259,13 @@ void NetConn::write_handler(const boost::system::error_code& ec, size_t bytes_tr
             w_pos_ = w_size_ = 0;
         }
 
-    } else if (ec != boost::asio::error::operation_aborted) {
+	} else {
 
-        log_error( "WRITE ERROR FOUND: %d", ec);
-
-        boost::system::error_code ignored_ec;
-        sock_ptr_->shutdown(ip::tcp::socket::shutdown_send, ignored_ec);
-        sock_ptr_->cancel();
+		if (handle_socket_ec(ec)) {
+			boost::system::error_code ignored_ec;
+			sock_ptr_->shutdown(boost::asio::ip::tcp::socket::shutdown_receive, ignored_ec);
+			sock_ptr_->cancel();
+		}
     }
 }
 
@@ -305,4 +304,30 @@ void NetConn::fill_http_for_send(const string& str, const string& status = http_
     w_pos_  = 0;
 
     return;
+}
+
+// http://www.boost.org/doc/libs/1_44_0/doc/html/boost_asio/reference/error__basic_errors.html
+bool NetConn::handle_socket_ec(const boost::system::error_code& ec) {
+
+	bool close_socket = false;
+
+	if (ec == boost::asio::error::eof) {
+		log_debug("Peer closed up...");
+		close_socket = true;
+	} else if (ec == boost::asio::error::connection_reset) {
+		log_debug("Connection reset by peer...");
+		close_socket = true;
+	} else if (ec == boost::asio::error::operation_aborted) {
+		log_debug("Operation aborted..."); // like timer ...
+	} else {
+		log_debug("Undetected error...");
+		close_socket = true;
+	}
+
+	if (close_socket) {
+		set_conn_stat(ConnStat::kConnError);
+		http_server_.add_net_conn_to_remove(shared_from_this());
+	}
+
+	return close_socket;
 }

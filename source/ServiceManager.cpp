@@ -47,6 +47,7 @@ bool ServiceManager::init() {
 	// start work
 	timer_service_ptr_->start_timer();
     http_server_ptr_->io_service_threads_.start_threads();
+	http_server_ptr_->net_conn_remove_threads_.start_threads();
 
 	log_trace("ServiceManager all initialized...");
     initialized_ = true;
@@ -57,7 +58,8 @@ bool ServiceManager::init() {
 
 bool ServiceManager::service_graceful() {
 
-	http_server_ptr_->stop_graceful();
+	http_server_ptr_->io_service_stop_graceful();
+	http_server_ptr_->net_conn_remove_stop_graceful();
 	timer_service_ptr_->stop_graceful();
 	log_trace("timer_service_ graceful finished!");
 

@@ -34,6 +34,9 @@ public:
     virtual void start();
     void stop();
 
+	// http://www.boost.org/doc/libs/1_44_0/doc/html/boost_asio/reference/error__basic_errors.html
+	bool handle_socket_ec(const boost::system::error_code& ec);
+
 private:
 
     virtual void do_read() override { safe_assert(false); }
