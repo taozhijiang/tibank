@@ -6,6 +6,7 @@
 
 #include "HttpServer.h"
 #include "NetConn.h"
+#include "HttpHandler.h"
 
 #include "Log.h"
 
@@ -27,6 +28,9 @@ bool HttpServer::init() {
 		log_error("HttpServer::initTask failed!");
 		return false;
 	}
+
+	register_http_post_handler("/submit", http_handler::submit_handler);
+	register_http_post_handler("/query", http_handler::query_handler);
 
     return true;
 }
@@ -128,4 +132,13 @@ int HttpServer::find_http_post_handler(std::string uri, HttpPostHandler& handler
     }
 
     return -1;
+}
+
+int HttpServer::stop_graceful() {
+
+	log_error("About to stop io_service... ");
+	io_service_.stop();
+	io_service_threads_.graceful_stop_threads();
+
+	return 0;
 }

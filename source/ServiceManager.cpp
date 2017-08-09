@@ -29,7 +29,7 @@ bool ServiceManager::init() {
 
 	if (!SignHelper::instance().init()) {
 		log_error("Init SignHelper failed!");
-        return false;
+    //    return false;
 	}
 
 	timer_service_ptr_.reset(new TimerService());
@@ -57,6 +57,7 @@ bool ServiceManager::init() {
 
 bool ServiceManager::service_graceful() {
 
+	http_server_ptr_->stop_graceful();
 	timer_service_ptr_->stop_graceful();
 	log_trace("timer_service_ graceful finished!");
 

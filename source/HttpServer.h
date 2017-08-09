@@ -12,11 +12,12 @@
 #include "TiGeneral.h"
 #include "NetConn.h"
 #include "ThreadPoolHelper.h"
+#include "HttpHandler.h"
 
-typedef boost::function<int (const std::string& post_data)> HttpPostHandler;
+typedef boost::function<int (const std::string& post_data, std::string& response, string& status)> HttpPostHandler;
 
 class HttpServer : public boost::noncopyable,
-                     public boost::enable_shared_from_this<HttpServer> {
+                   public boost::enable_shared_from_this<HttpServer> {
 public:
 
     /// Construct the server to listen on the specified TCP address and port
@@ -45,6 +46,8 @@ private:
 public:
     ThreadPoolHelper io_service_threads_;
     void io_service_run(ThreadObjPtr ptr);	// main task loop
+
+	int stop_graceful();
 };
 
 #endif //_TiBANK_HTTP_SERVER_H_

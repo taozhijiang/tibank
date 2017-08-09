@@ -207,11 +207,15 @@ void NetConn::read_body_handler(const boost::system::error_code& ec, size_t byte
             fill_http_for_send(http_proto::content_not_found, http_proto::status::not_found);
         } else {
             if (handler) {
-                handler(std::string(p_buffer_->data(), r_size_)); // call it!
-                if (send_buff_empty()) {
+				std::string response_body;
+				std::string response_status;
+                handler(std::string(p_buffer_->data(), r_size_), response_body, response_status); // call it!
+                if (response_body.empty() || response_status.empty()) {
                     log_error("caller not generate response body!");
                     fill_http_for_send(http_proto::content_ok, http_proto::status::ok);
-                }
+                } else {
+					fill_http_for_send(response_body, response_status);
+				}
             } else {
                 log_error("uri %s found, but handler empty!", http_parser_.find_request_header(http_proto::header_options::request_uri).c_str());
                 fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
