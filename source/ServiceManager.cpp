@@ -5,8 +5,9 @@
 
 #include "ServiceManager.h"
 #include "SignHelper.h"
-#include "TimerService.h"
 
+#include "TimerService.h"
+#include "HttpServer.h"
 
 // 在主线程中最先初始化，所以不考虑竞争条件问题
 ServiceManager& ServiceManager::instance() {
@@ -37,8 +38,15 @@ bool ServiceManager::init() {
 		return false;
 	}
 
+	http_server_ptr_.reset(new HttpServer("127.0.0.1", 8899, 4));
+	if (!http_server_ptr_ || !http_server_ptr_->init()) {
+		log_error("Init HttpServer failed!");
+		return false;
+	}
+
 	// start work
 	timer_service_ptr_->start_timer();
+    http_server_ptr_->io_service_threads_.start_threads();
 
 	log_trace("ServiceManager all initialized...");
     initialized_ = true;

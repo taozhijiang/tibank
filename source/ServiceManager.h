@@ -8,6 +8,7 @@
 #include <boost/shared_ptr.hpp>
 
 class TimerService;
+class HttpServer;
 
 class ServiceManager {
 public:
@@ -27,6 +28,7 @@ private:
 
 public:
 	boost::shared_ptr<TimerService> timer_service_ptr_;
+	boost::shared_ptr<HttpServer> http_server_ptr_;
 };
 
 
