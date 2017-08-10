@@ -15,11 +15,12 @@
 #include "HttpHandler.h"
 
 #include "EQueue.h"
+#include "BucketSet.h"
 
 typedef boost::function<int (const std::string& post_data, std::string& response, string& status)> HttpPostHandler;
 
 class HttpServer : public boost::noncopyable,
-                   public boost::enable_shared_from_this<HttpServer> {
+                    public boost::enable_shared_from_this<HttpServer> {
 public:
 
     /// Construct the server to listen on the specified TCP address and port
@@ -43,9 +44,7 @@ private:
     std::map<std::string, HttpPostHandler> http_post_handler_;
 
 private:
-    boost::mutex net_conns_mutex_;
-    std::set<net_conn_ptr> net_conns_;
-
+    BucketSet<net_conn_ptr> net_conns_;
 	EQueue<net_conn_weak> pending_to_remove_;
 
 public:

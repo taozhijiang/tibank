@@ -48,6 +48,6 @@ install (DIRECTORY include/ DESTINATION include/tibank)
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
-set (CPACK_PACKAGE_VERSION_MAJOR "${AIMLSRV_VERSION_MAJOR}")
-set (CPACK_PACKAGE_VERSION_MINOR "${AIMLSRV_VERSION_MINOR}")
+set (CPACK_PACKAGE_VERSION_MAJOR "${tibank_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${tibank_VERSION_MAJOR}")
 include (CPack)

@@ -10,11 +10,18 @@
 
 #include "Log.h"
 
+static const size_t bucket_size_ = 0xFF;
+static size_t bucket_hash_index_call(const net_conn_ptr& ptr) {
+    if(!ptr) return 0;
+    return (reinterpret_cast<int64_t>(ptr.get()));
+}
+
 HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c_cz) :
     io_service_(),
     ep_(ip::tcp::endpoint(ip::address::from_string(address), port)),
     acceptor_(io_service_, ep_),
     io_service_threads_(c_cz),
+    net_conns_(bucket_size_, bucket_hash_index_call),
 	net_conn_remove_threads_(1) {
 
     acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
@@ -24,6 +31,11 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c
 }
 
 bool HttpServer::init() {
+
+	if (!net_conns_.init()) {
+		log_error("Init net_conns_ BucketSet failed!");
+		return false;
+	}
 
 	if (!io_service_threads_.init_threads(boost::bind(&HttpServer::io_service_run, shared_from_this(), _1))) {
 		log_error("HttpServer::io_service_run init task failed!");
@@ -98,7 +110,7 @@ void HttpServer::accept_handler(const boost::system::error_code& ec, socket_shar
 	log_debug(output.str().c_str());
 
     net_conn_ptr new_conn = boost::make_shared<NetConn>(sock_ptr, *this);
-	net_conns_.insert(new_conn);
+	net_conns_.INSERT(new_conn);
 
     new_conn->start();
 
@@ -184,7 +196,10 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 
 			//
 			log_debug("do remove ... ");
+			net_conns_.ERASE(shared_ptr);
 		}
+
+		log_info("Current net_conns_ size: %ld ", net_conns_.SIZE());
 
     }
 

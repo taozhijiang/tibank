@@ -38,7 +38,7 @@ bool ServiceManager::init() {
 		return false;
 	}
 
-	http_server_ptr_.reset(new HttpServer("127.0.0.1", 8899, 4));
+	http_server_ptr_.reset(new HttpServer("127.0.0.1", 8899, 10));
 	if (!http_server_ptr_ || !http_server_ptr_->init()) {
 		log_error("Init HttpServer failed!");
 		return false;
