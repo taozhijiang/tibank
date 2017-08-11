@@ -27,8 +27,6 @@ public:
     HttpServer(const std::string& address, unsigned short port, size_t t_size);
     bool init();
 
-    int register_http_post_handler(std::string uri, HttpPostHandler handler);
-    int find_http_post_handler(std::string uri, HttpPostHandler& handler);
 
 private:
     friend class NetConn;
@@ -43,11 +41,18 @@ private:
 
     std::map<std::string, HttpPostHandler> http_post_handler_;
 
-private:
     BucketSet<net_conn_ptr> net_conns_;
 	EQueue<net_conn_weak> pending_to_remove_;
 
 public:
+
+    int register_http_post_handler(std::string uri, HttpPostHandler handler);
+    int find_http_post_handler(std::string uri, HttpPostHandler& handler);
+
+	int add_net_conn(net_conn_ptr conn_ptr) {
+		net_conns_.INSERT(conn_ptr);
+	}
+
 	int add_net_conn_to_remove(net_conn_ptr conn_ptr) {
 		pending_to_remove_.PUSH(net_conn_weak(conn_ptr));
 	}

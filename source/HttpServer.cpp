@@ -12,8 +12,7 @@
 
 static const size_t bucket_size_ = 0xFF;
 static size_t bucket_hash_index_call(const net_conn_ptr& ptr) {
-    if(!ptr) return 0;
-    return (reinterpret_cast<int64_t>(ptr.get()));
+    return std::hash<NetConn *>()(ptr.get());
 }
 
 HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c_cz) :

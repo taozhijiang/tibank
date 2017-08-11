@@ -118,6 +118,7 @@ namespace http_proto {
      */
     string http_response_generate(const string& content, const string& stat_str);
     string http_response_generate(const char* data, size_t len, const string& stat_str);
+    int http_url_decode(const std::string& in, std::string& out);
 
 }  // http_proto
 

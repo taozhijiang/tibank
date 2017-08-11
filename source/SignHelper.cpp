@@ -21,13 +21,13 @@ SignHelper& SignHelper::instance() {
 
 bool SignHelper::init() {
 
-	tibank_app_public_key_ = import_public_key("/data/cert/signfile/app_public_key.pem");
+	tibank_app_public_key_ = import_public_key("../signfile/app_public_key.pem");
 	if (!tibank_app_public_key_) {
 		log_error("Import app public key failed, fatal!");
 		return false;
 	}
 
-    tibank_platform_private_key_ = import_private_key("/data/cert/signfile/platform_private_key.pem");
+    tibank_platform_private_key_ = import_private_key("../signfile/platform_private_key.pem");
 	if (!tibank_platform_private_key_) {
 		log_error("Import platform private key failed, fatal!");
 		return false;

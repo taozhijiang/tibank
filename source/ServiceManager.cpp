@@ -29,7 +29,13 @@ bool ServiceManager::init() {
 
 	if (!SignHelper::instance().init()) {
 		log_error("Init SignHelper failed!");
-    //    return false;
+        return false;
+	}
+
+    sql_pool_ptr_.reset(new SqlConnPool(20, "127.0.0.1", "root", "1234", "paybank"));
+	if (!sql_pool_ptr_) {
+		log_error("Init SqlConnPool failed!");
+		return false;
 	}
 
 	timer_service_ptr_.reset(new TimerService());
@@ -38,7 +44,7 @@ bool ServiceManager::init() {
 		return false;
 	}
 
-	http_server_ptr_.reset(new HttpServer("127.0.0.1", 8899, 10));
+	http_server_ptr_.reset(new HttpServer("0.0.0.0", 8899, 8));
 	if (!http_server_ptr_ || !http_server_ptr_->init()) {
 		log_error("Init HttpServer failed!");
 		return false;

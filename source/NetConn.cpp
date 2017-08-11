@@ -47,7 +47,7 @@ void NetConn::do_read_head() {
     }
 
     std::stringstream output;
-    output << "strand read read_util ... in " << boost::this_thread::get_id();
+    output << "strand read read_until ... in " << boost::this_thread::get_id();
     log_debug(output.str().c_str());
 
     async_read_until(*sock_ptr_, request_,

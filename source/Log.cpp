@@ -25,6 +25,7 @@ int Log::get_time_prefix(char *buf, int size) {
 }
 
 void Log::log_api(int priority, const char *file, int line, const char *func, const char *msg, ...) {
+
     int n = 0;
     char buf[MAX_LOG_BUF_SIZE + 2] = {0,};
 

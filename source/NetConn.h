@@ -67,6 +67,12 @@ private:
 
     HttpServer& http_server_;
     HttpParser http_parser_;
+
+    // Where there is a single chain of asynchronous operations associated with a
+    // connection (e.g. in a half duplex protocol implementation like HTTP) there
+    // is no possibility of concurrent execution of the handlers. This is an implicit strand.
+
+    // Strand to ensure the connection's handlers are not called concurrently. ???
     boost::shared_ptr<io_service::strand> strand_;
 
 private:
