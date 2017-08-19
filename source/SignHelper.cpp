@@ -143,7 +143,7 @@ int SignHelper::calc_sign(const std::map<std::string, std::string>& mapParam, st
 
     std::string strDataForSHA1 = osForSHA1.str();
 	strDataForSHA1 = strDataForSHA1.substr(0, strDataForSHA1.size() - 1); //删除结尾的&
-    log_trace("strDataForSHA1:%s", strDataForSHA1.c_str());
+    // log_trace("strDataForSHA1:%s", strDataForSHA1.c_str());
 
     unsigned char sha1value[20];
 	EVP_MD_CTX ctx;

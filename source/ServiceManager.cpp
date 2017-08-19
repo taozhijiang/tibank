@@ -8,6 +8,7 @@
 
 #include "TimerService.h"
 #include "HttpServer.h"
+#include "TransProcessTask.h"
 
 // 在主线程中最先初始化，所以不考虑竞争条件问题
 ServiceManager& ServiceManager::instance() {
@@ -50,10 +51,17 @@ bool ServiceManager::init() {
 		return false;
 	}
 
+    trans_process_ptr_.reset(new TransProcessTask(4));
+    if (!trans_process_ptr_ || !trans_process_ptr_->init()){
+		log_error("Init TransProcessTask failed!");
+		return false;
+    }
+
 	// start work
 	timer_service_ptr_->start_timer();
     http_server_ptr_->io_service_threads_.start_threads();
 	http_server_ptr_->net_conn_remove_threads_.start_threads();
+    trans_process_ptr_->trans_process_task_.start_threads();
 
 	log_trace("ServiceManager all initialized...");
     initialized_ = true;

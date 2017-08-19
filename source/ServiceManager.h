@@ -11,6 +11,7 @@
 
 class TimerService;
 class HttpServer;
+class TransProcessTask;
 
 class ServiceManager {
 public:
@@ -31,6 +32,7 @@ private:
 public:
 	boost::shared_ptr<TimerService> timer_service_ptr_;
 	boost::shared_ptr<HttpServer> http_server_ptr_;
+    boost::shared_ptr<TransProcessTask> trans_process_ptr_;
     boost::shared_ptr<SqlConnPool> sql_pool_ptr_;
 };
 

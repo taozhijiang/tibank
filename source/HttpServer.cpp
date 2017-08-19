@@ -193,12 +193,11 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 				log_error("Warning, remove unerror conn: %d", shared_ptr->get_conn_stat());
 			}
 
-			//
-			log_debug("do remove ... ");
+			// log_debug("do remove ... ");
 			net_conns_.ERASE(shared_ptr);
 		}
 
-		log_info("Current net_conns_ size: %ld ", net_conns_.SIZE());
+		// log_info("Current net_conns_ size: %ld ", net_conns_.SIZE());
 
     }
 

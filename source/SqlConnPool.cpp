@@ -33,14 +33,18 @@ sql_conn_ptr SqlConnPool::do_request_conn() {
 
     if ( (sql_conns_free_.size() + sql_conns_work_.size()) < capacity_) {
 
-        sql_conn_ptr new_conn = boost::make_shared<SqlConn>(*this, 0,
-                                                         host_, user_, passwd_, db_);
+        sql_conn_ptr new_conn = boost::make_shared<SqlConn>(*this);
         if (!new_conn){
             log_error("Creating new SqlConn failed!");
             return new_conn;
         }
 
-        new_conn->set_uuid(reinterpret_cast<int64_t>(new_conn.get()));
+        if (!new_conn->init(reinterpret_cast<int64_t>(new_conn.get()), host_, user_, passwd_, db_)){
+            log_error("init new SqlConn failed!");
+            new_conn.reset();
+            return new_conn;
+        }
+
         sql_conns_work_.insert(new_conn);
         return new_conn;
     }
@@ -77,7 +81,7 @@ bool SqlConnPool::request_scoped_conn(sql_conn_ptr& scope_conn) {
         scope_conn.reset(conn.get(),
                          boost::bind(&SqlConnPool::free_conn,
                          this, conn)); // 还是通过智能指针拷贝一份吧
-        log_debug("Request guard connection: %ld", scope_conn->get_uuid());
+        // log_debug("Request guard connection: %ld", scope_conn->get_uuid());
         return true;
     }
 
@@ -113,7 +117,7 @@ void SqlConnPool::free_conn(sql_conn_ptr conn) {
         sql_conns_free_.insert(conn);
         sql_conns_work_.erase(conn);
 
-        log_debug("Freeing %ld conn", conn->get_uuid());
+        // log_debug("Freeing %ld conn", conn->get_uuid());
     }
 
     conn_notify_.notify_all();

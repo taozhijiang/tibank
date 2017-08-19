@@ -5,16 +5,27 @@
 
 #include <boost/scoped_ptr.hpp>
 
-SqlConn::SqlConn(SqlConnPool& pool, int64_t conn_uuid,
-				   string host, string user, string passwd, string db):
-	is_connected_(false),
-    driver_(get_driver_instance()),
-    conn_uuid_(conn_uuid),
-    result_(),
-    prep_stmt_(),
+SqlConn::SqlConn(SqlConnPool& pool):
+    driver_(),
+    conn_uuid_(0),
+    stmt_(),
     pool_(pool) {
+}
+
+bool SqlConn::init(int64_t conn_uuid,
+                     string host, string user, string passwd, string db) {
 
     try {
+
+        conn_uuid_ = conn_uuid;
+        driver_ = get_driver_instance(); // not thread safe!!!
+
+        std::stringstream output;
+        output << "# " << driver_->getName() << ", version ";
+		output << driver_->getMajorVersion() << "." << driver_->getMinorVersion();
+        output << "." << driver_->getPatchVersion() << endl;
+        log_trace("Driver info: %s", output.str().c_str());
+
 		conn_.reset(driver_->connect(host, user, passwd));
         stmt_.reset(conn_->createStatement());
     }
@@ -25,11 +36,12 @@ SqlConn::SqlConn(SqlConnPool& pool, int64_t conn_uuid,
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
         log_error("%s", output.str().c_str());
+        return false;
     }
 
     stmt_->execute("USE " + db + ";");
-	set_connected(true);
     log_info("Create New Connection OK!");
+    return true;
 }
 
 SqlConn::~SqlConn() {
@@ -37,52 +49,20 @@ SqlConn::~SqlConn() {
     /* reset to fore delete, actually not need */
     conn_.reset();
     stmt_.reset();
-    prep_stmt_.reset();
 
-    if (result_) {
-        safe_assert(result_.unique());
-        result_.reset();
-    }
-    //BOOST_LOG_T(info) << "Destruct Connection " << conn_uuid_ << " OK!" ;
+    log_trace("Destruct Connection %ld OK!", conn_uuid_);
 }
 
-
-bool SqlConn::execute_command(const string& sql) {
+bool SqlConn::sqlconn_execute(const string& sql) {
 
     try {
 
-        if(!conn_->isValid())
+        if(!conn_->isValid()) {
+            log_error("Invalid connect, do re-connect...");
             conn_->reconnect();
-
-        return stmt_->execute(sql);
-
-    } catch (sql::SQLException &e) {
-
-        std::stringstream output;
-        output << " STMT: " << sql << endl;
-        output << "# ERR: " << e.what() << endl;
-        output << " (MySQL error code: " << e.getErrorCode() << endl;
-        output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
-
-        return false;
-    }
-}
-
-bool SqlConn::execute_query(const string& sql) {
-
-	try {
-
-        if(!conn_->isValid())
-            conn_->reconnect();
+        }
 
         stmt_->execute(sql);
-        result_.reset(stmt_->getResultSet());
-
-        // 没有结果以及出错的时候，返回false
-        if (result_->rowsCount() == 0)
-            return false;
-
         return true;
 
     } catch (sql::SQLException &e) {
@@ -93,96 +73,60 @@ bool SqlConn::execute_query(const string& sql) {
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
         log_error("%s", output.str().c_str());
-
-        return false;
     }
-}
-
-// return 0 maybe error, we ignore this case
-size_t SqlConn::execute_query_count(const string& sql) {
-
-    try {
-
-        if(!conn_->isValid())
-            conn_->reconnect();
-
-        stmt_->execute(sql);
-        result_.reset(stmt_->getResultSet());
-        if (result_->rowsCount() != 1)
-            return 0;
-
-        result_->next();
-        return (result_->getInt(1));
-
-    } catch (sql::SQLException &e) {
-
-        std::stringstream output;
-        output << " STMT: " << sql << endl;
-        output << "# ERR: " << e.what() << endl;
-        output << " (MySQL error code: " << e.getErrorCode() << endl;
-        output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
-
-        return 0;
-    }
-}
-
-bool SqlConn::execute_check_exist(const string& sql) {
-
-    if (execute_query_count(sql) > 0 )
-        return true;
 
     return false;
 }
 
+sql::ResultSet* SqlConn::sqlconn_execute_query(const string& sql) {
 
+    sql::ResultSet* result = NULL;
 
-bool SqlConn::execute_prep_stmt_command() {
+	try {
 
-    try {
-
-        if(!conn_->isValid())
+        if(!conn_->isValid()) {
+            log_error("Invalid connect, do re-connect...");
             conn_->reconnect();
+        }
 
-        return prep_stmt_->execute();
+        stmt_->execute(sql);
+        result = stmt_->getResultSet();
 
     } catch (sql::SQLException &e) {
 
         std::stringstream output;
+        output << " STMT: " << sql << endl;
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
         log_error("%s", output.str().c_str());
 
-        return false;
     }
+
+    return result;
 }
 
-bool SqlConn::execute_prep_stmt_query() {
+int SqlConn::sqlconn_execute_update(const string& sql) {
 
     try {
 
-        if(!conn_->isValid())
+        if(!conn_->isValid()) {
+            log_error("Invalid connect, do re-connect...");
             conn_->reconnect();
+        }
 
-        prep_stmt_->execute();
-        result_.reset(prep_stmt_->getResultSet());
-
-        // 没有结果以及出错的时候，返回false
-        if (result_->rowsCount() == 0)
-            return false;
-
-        return true;
+        return stmt_->executeUpdate(sql);
 
     } catch (sql::SQLException &e) {
 
         std::stringstream output;
+        output << " STMT: " << sql << endl;
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
         log_error("%s", output.str().c_str());
 
-        return false;
     }
-}
 
+    return -1;
+}

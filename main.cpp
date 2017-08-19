@@ -11,7 +11,7 @@ void backtrace_init();
 #include "commonutil/SslSetup.h"
 
 volatile bool TiBANK_SHUTDOWN = false;
-
+const char* TiBANK_DATABASE_PREFIX = "tibank";
 
 static void interrupted_callback(int signal){
     log_error("Signal %d received ...", signal);

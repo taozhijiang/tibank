@@ -28,7 +28,7 @@ public:
     NetConn(boost::shared_ptr<ip::tcp::socket> sock_ptr, HttpServer& server);
 
     virtual ~NetConn() {
-		log_debug("NET CONN SOCKET RELEASED!!!");
+		// log_debug("NET CONN SOCKET RELEASED!!!");
 	}
 
     virtual void start();

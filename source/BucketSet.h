@@ -25,17 +25,17 @@ public:
 		return item_.erase(t);
 	}
 
-    size_t do_exist(const T& t) {
+    size_t do_exist(const T& t) const {
 		boost::unique_lock<boost::mutex> lock(lock_);
 		return (item_.find(t) != item_.end());
 	}
 
-    size_t do_size() {
+    size_t do_size() const {
         boost::unique_lock<boost::mutex> lock(lock_);
 		return item_.size();
     }
 
-    bool do_empty() {
+    bool do_empty() const {
         boost::unique_lock<boost::mutex> lock(lock_);
         return item_.empty();
     }
@@ -76,22 +76,22 @@ public:
 	}
 
 public:
-    void INSERT(const T& t){
+    void INSERT(const T& t) const {
 		size_t index = hash_index_call_(t) & bucket_size_;
         return items_[index].do_insert(t);
 	}
 
-	size_t ERASE(const T& t) {
+	size_t ERASE(const T& t) const {
 		size_t index = hash_index_call_(t) & bucket_size_;
         return items_[index].do_erase(t);
 	}
 
-    size_t EXIST(const T& t) {
+    size_t EXIST(const T& t) const {
 		size_t index = hash_index_call_(t) & bucket_size_;
         return items_[index].do_exist(t);
 	}
 
-    size_t SIZE() {
+    size_t SIZE() const {
         size_t total_size = 0;
         for (size_t i=0; i<bucket_size_; ++i)
             total_size += items_[i].do_size();
@@ -99,7 +99,7 @@ public:
         return total_size;
     }
 
-    bool EMPTY() {
+    bool EMPTY() const {
         for (size_t i=0; i<bucket_size_; ++i)
             if (!items_[i].do_empty())
                 return false;
@@ -107,14 +107,14 @@ public:
         return true;
     }
 
-    void CLEAR() {
+    void CLEAR() const {
         for (size_t i=0; i<bucket_size_; ++i)
             items_[i].do_clear();
     }
 
 private:
 
-    size_t round_to_power(size_t size) {
+    size_t round_to_power(size_t size) const {
         size_t ret = 0x1;
         while (ret < size) { ret = (ret << 1) + 1; }
 
