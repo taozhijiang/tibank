@@ -45,7 +45,7 @@ bool ServiceManager::init() {
 		return false;
 	}
 
-	http_server_ptr_.reset(new HttpServer("0.0.0.0", 8899, 8));
+	http_server_ptr_.reset(new HttpServer("0.0.0.0", 8899, 8, "/var/www/html/"));
 	if (!http_server_ptr_ || !http_server_ptr_->init()) {
 		log_error("Init HttpServer failed!");
 		return false;
@@ -61,7 +61,9 @@ bool ServiceManager::init() {
 	timer_service_ptr_->start_timer();
     http_server_ptr_->io_service_threads_.start_threads();
 	http_server_ptr_->net_conn_remove_threads_.start_threads();
-    trans_process_ptr_->trans_process_task_.start_threads();
+
+	// business attached
+	// trans_process_ptr_->trans_process_task_.start_threads();
 
 	log_trace("ServiceManager all initialized...");
     initialized_ = true;

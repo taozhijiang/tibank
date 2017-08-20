@@ -15,10 +15,12 @@ static size_t bucket_hash_index_call(const net_conn_ptr& ptr) {
     return std::hash<NetConn *>()(ptr.get());
 }
 
-HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c_cz) :
+HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c_cz, std::string docu_root) :
     io_service_(),
     ep_(ip::tcp::endpoint(ip::address::from_string(address), port)),
     acceptor_(io_service_, ep_),
+	docu_root_(docu_root),
+	docu_index_({"index.html", "index.htm", "index.xhtml"}),
     io_service_threads_(c_cz),
     net_conns_(bucket_size_, bucket_hash_index_call),
 	net_conn_remove_threads_(1) {
@@ -142,6 +144,40 @@ int HttpServer::find_http_post_handler(std::string uri, HttpPostHandler& handler
 
     std::map<std::string, HttpPostHandler>::const_iterator it;
     for (it = http_post_handler_.cbegin(); it!=http_post_handler_.cend(); ++it) {
+        if (boost::iequals(uri, it->first)){
+            handler = it->second;
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+int HttpServer::register_http_get_handler(std::string uri, HttpGetHandler handler){
+
+    uri = boost::algorithm::trim_copy(boost::to_lower_copy(uri));
+    while (uri[uri.size()-1] == '/' && uri.size() > 1)  // 全部的大写字母，去除尾部 /
+        uri = uri.substr(0, uri.size()-1);
+
+    std::map<std::string, HttpGetHandler>::const_iterator it;
+    for (it = http_get_handler_.cbegin(); it!=http_get_handler_.cend(); ++it) {
+        if (boost::iequals(uri, it->first))
+            log_error("Handler for %s already exists, override it!", uri.c_str());
+    }
+
+    http_get_handler_[uri] = handler;
+    return 0;
+}
+
+
+int HttpServer::find_http_get_handler(std::string uri, HttpGetHandler& handler){
+
+    uri = boost::algorithm::trim_copy(boost::to_lower_copy(uri));
+    while (uri[uri.size()-1] == '/' && uri.size() > 1)  // 全部的小写字母，去除尾部 /
+        uri = uri.substr(0, uri.size()-1);
+
+    std::map<std::string, HttpGetHandler>::const_iterator it;
+    for (it = http_get_handler_.cbegin(); it!=http_get_handler_.cend(); ++it) {
         if (boost::iequals(uri, it->first)){
             handler = it->second;
             return 0;

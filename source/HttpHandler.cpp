@@ -1,6 +1,14 @@
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <fstream>
+#include <sstream>
 
 #include "HttpProto.h"
 #include "HttpHandler.h"
+#include "ServiceManager.h"
+#include "HttpServer.h"
 
 #include "TransProcess.h"
 #include "SignHelper.h"
@@ -10,7 +18,7 @@
 
 namespace http_handler {
 
-int submit_handler(const std::string& post_data, std::string& response, string& status) {
+int submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
 
     Json::Value root;
 	Json::Reader reader;
@@ -99,7 +107,7 @@ error_ret:
 	return -1;
 }
 
-int query_handler(const std::string& post_data, std::string& response, string& status) {
+int query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
 
     Json::Value root;
 	Json::Reader reader;
@@ -178,6 +186,102 @@ error_ret:
     response = http_proto::content_error;
     status = http_proto::status::internal_server_error;
 	return -1;
+}
+
+static const std::string& get_document_root() {
+	return ServiceManager::instance().http_server_ptr_->get_document_root();
+}
+
+static const std::vector<std::string>& get_document_index() {
+	return ServiceManager::instance().http_server_ptr_->get_document_index();
+}
+
+static bool check_and_sendfile(std::string regular_file_path, std::string& response, string& status) {
+
+	// check dest is directory or regular?
+	struct stat sb;
+	if (stat(regular_file_path.c_str(), &sb) == -1) {
+		log_error("Stat file error: %s", regular_file_path.c_str());
+		response = http_proto::content_error;
+		status = http_proto::status::internal_server_error;
+		return false;
+	}
+
+	if (sb.st_size > 100*1024*1024 /*100M*/) {
+		log_error("Too big file size: %ld", sb.st_size);
+		response = http_proto::content_bad_request;
+		status = http_proto::status::bad_request;
+		return false;
+	}
+
+	std::ifstream fin(regular_file_path);
+	fin.seekg(0);
+	std::stringstream buffer;
+	buffer << fin.rdbuf();
+	response = buffer.str();
+	status = http_proto::status::ok;
+
+	return true;
+}
+
+
+int default_http_get_handler(const HttpParser& http_parser, std::string& response, string& status) {
+
+	const UriParamContainer& params = http_parser.get_request_uri_params();
+	if (!params.EMPTY()) {
+		log_error("Default handler just for static file transmit, we can not handler uri parameters...");
+	}
+
+	std::string real_file_path = get_document_root() + "/" + http_parser.find_request_header(http_proto::header_options::request_path_info);
+
+	// check dest exist?
+	if (::access(real_file_path.c_str(), R_OK) != 0) {
+		log_error("File not found: %s", real_file_path.c_str());
+		response = http_proto::content_not_found;
+		status = http_proto::status::not_found;
+		return -1;
+	}
+
+	// check dest is directory or regular?
+	struct stat sb;
+	if (stat(real_file_path.c_str(), &sb) == -1) {
+		log_error("Stat file error: %s", real_file_path.c_str());
+		response = http_proto::content_error;
+		status = http_proto::status::internal_server_error;
+		return -1;
+	}
+
+	switch (sb.st_mode & S_IFMT) {
+		case S_IFREG:
+			check_and_sendfile(real_file_path, response, status);
+			break;
+
+		case S_IFDIR:
+			{
+				bool OK = false;
+				const std::vector<std::string> &indexes = get_document_index();
+				for (std::vector<std::string>::const_iterator iter = indexes.cbegin(); iter != indexes.cend(); ++iter) {
+					std::string file_path = real_file_path + "/" + *iter;
+					log_trace("Trying: %s", file_path.c_str());
+					if (check_and_sendfile(file_path, response, status)) {
+						OK = true;
+						break;
+					}
+				}
+
+				if (!OK) {
+					// default, 404
+					response = http_proto::content_not_found;
+					status = http_proto::status::not_found;
+				}
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	return 0;
 }
 
 } // end namespace

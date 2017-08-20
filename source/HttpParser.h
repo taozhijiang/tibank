@@ -14,6 +14,8 @@
 #include "KeyValueVec.h"
 #include "Log.h"
 
+typedef KeyValueVec<std::string, std::string> UriParamContainer;
+
 class HttpParser: private boost::noncopyable {
 public:
     HttpParser():
@@ -34,7 +36,7 @@ public:
         return do_parse_request(header);
     }
 
-    std::string find_request_header(std::string option_name) {
+    std::string find_request_header(std::string option_name) const {
 
         if (!option_name.size())
             return "";
@@ -127,6 +129,11 @@ public:
 
 		return true;
 	}
+
+	const UriParamContainer& get_request_uri_params() const {
+		return request_uri_params_;
+	}
+
 
 private:
 
@@ -278,7 +285,7 @@ private:
 
 private:
     std::map<std::string, std::string> request_headers_;
-	KeyValueVec<std::string, std::string> request_uri_params_;
+	UriParamContainer request_uri_params_;
 };
 
 

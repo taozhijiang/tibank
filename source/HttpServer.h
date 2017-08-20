@@ -17,16 +17,17 @@
 
 #include "EQueue.h"
 #include "BucketSet.h"
+#include "HttpParser.h"
 
-typedef boost::function<int (const std::string& post_data, std::string& response, string& status)> HttpPostHandler;
-typedef boost::function<int (const std::map<std::string, std::string>& get_arguments, std::string& response, string& status)> HttpGetHandler;
+typedef boost::function<int (const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status)> HttpPostHandler;
+typedef boost::function<int (const HttpParser& http_parser, std::string& response, string& status)> HttpGetHandler;
 
 class HttpServer : public boost::noncopyable,
                     public boost::enable_shared_from_this<HttpServer> {
 public:
 
     /// Construct the server to listen on the specified TCP address and port
-    HttpServer(const std::string& address, unsigned short port, size_t t_size);
+    HttpServer(const std::string& address, unsigned short port, size_t t_size, std::string docu_root);
     bool init();
 
 
@@ -37,6 +38,9 @@ private:
     // 侦听地址信息
     ip::tcp::endpoint ep_;
     ip::tcp::acceptor acceptor_;
+
+	const std::string docu_root_;
+	std::vector<std::string> docu_index_;
 
     void do_accept();
     void accept_handler(const boost::system::error_code& ec, socket_shared_ptr ptr);
@@ -54,6 +58,14 @@ public:
 
 	int register_http_get_handler(std::string uri, HttpGetHandler handler);
     int find_http_get_handler(std::string uri, HttpGetHandler& handler);
+
+	const std::string& get_document_root() {
+		return docu_root_;
+	}
+
+	const std::vector<std::string>& get_document_index() {
+		return docu_index_;
+	}
 
 	int add_net_conn(net_conn_ptr conn_ptr) {
 		net_conns_.INSERT(conn_ptr);
