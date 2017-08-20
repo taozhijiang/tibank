@@ -2,6 +2,7 @@
 #define _TiBANK_HTTP_SERVER_H_
 
 #include <set>
+#include <map>
 
 #include <boost/noncopyable.hpp>
 #include <boost/enable_shared_from_this.hpp>
@@ -18,6 +19,7 @@
 #include "BucketSet.h"
 
 typedef boost::function<int (const std::string& post_data, std::string& response, string& status)> HttpPostHandler;
+typedef boost::function<int (const std::map<std::string, std::string>& get_arguments, std::string& response, string& status)> HttpGetHandler;
 
 class HttpServer : public boost::noncopyable,
                     public boost::enable_shared_from_this<HttpServer> {
@@ -40,6 +42,7 @@ private:
     void accept_handler(const boost::system::error_code& ec, socket_shared_ptr ptr);
 
     std::map<std::string, HttpPostHandler> http_post_handler_;
+	std::map<std::string, HttpGetHandler> http_get_handler_;
 
     BucketSet<net_conn_ptr> net_conns_;
 	EQueue<net_conn_weak> pending_to_remove_;
@@ -48,6 +51,9 @@ public:
 
     int register_http_post_handler(std::string uri, HttpPostHandler handler);
     int find_http_post_handler(std::string uri, HttpPostHandler& handler);
+
+	int register_http_get_handler(std::string uri, HttpGetHandler handler);
+    int find_http_get_handler(std::string uri, HttpGetHandler& handler);
 
 	int add_net_conn(net_conn_ptr conn_ptr) {
 		net_conns_.INSERT(conn_ptr);

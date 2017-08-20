@@ -46,7 +46,7 @@ public:
     }
 
 private:
-	std::set<T> item_;
+	Container item_;
 	boost::mutex lock_;
 };
 

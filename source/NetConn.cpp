@@ -115,53 +115,72 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
         std::string head_str (boost::asio::buffers_begin(request_.data()),
                                 boost::asio::buffers_begin(request_.data()) + request_.size());
 
-        request_.consume(bytes_transferred); // skip the head
+        request_.consume(bytes_transferred); // skip the already head
 
         if (!http_parser_.parse_request_header(head_str.c_str())) {
             log_error( "Parse request error: %s", head_str.c_str());
             goto error_return;
         }
 
-        if (! boost::iequals(http_parser_.find_request_header(http_proto::header_options::request_method), "POST") ) {
-            log_error("Invalid request method: %s", http_parser_.find_request_header(http_proto::header_options::request_method).c_str());
+		// Header must already recv here, do the uri parse work,
+		// And store the items in params
+		if (!http_parser_.parse_request_uri()) {
+			std::string uri = http_parser_.find_request_header(http_proto::header_options::request_uri);
+			log_error("Prase request uri failed: %s", uri.c_str());
+			goto error_return;
+		}
+
+		if (boost::iequals(http_parser_.find_request_header(http_proto::header_options::request_method), "GET") ) {
+
+			// HTTP GET handler
+			safe_assert(http_parser_.find_request_header(http_proto::header_options::content_length).empty());
+
+        } else if (boost::iequals(http_parser_.find_request_header(http_proto::header_options::request_method), "POST") ) {
+
+			// HTTP POST handler
+
+			size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
+			r_size_ = 0;
+			size_t additional_size = request_.size(); // net additional body size
+
+			safe_assert( additional_size <= len );
+			if (len + 1 > p_buffer_->size()) {
+				log_trace( "relarge receive buffer size to: %d", (len + 256));
+				p_buffer_->resize(len + 256);
+			}
+
+			// first async_read_until may read more additional data, if so
+			// then move additional data possible
+			if( additional_size ) {
+
+				std::string additional (boost::asio::buffers_begin(request_.data()),
+						  boost::asio::buffers_begin(request_.data()) + additional_size);
+
+				memcpy(p_buffer_->data(), additional.c_str(), additional_size + 1);
+				r_size_ = additional_size;
+
+				request_.consume(additional_size); // skip the head part
+			}
+
+			// normally, we will return these 2 cases
+			if (additional_size < len) {
+				// need to read more data here, write to r_size_
+				do_read_body();
+			}
+			else {
+				// call the process callback directly
+				read_body_handler(ec, additional_size);   // already updated r_size_
+			}
+
+			return;
+
+        } else {
+			log_error("Invalid or unsupport request method: %s", http_parser_.find_request_header(http_proto::header_options::request_method).c_str());
             fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
             goto write_return;
-        }
+		}
 
-        size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
-        r_size_ = 0;
-        size_t additional_size = request_.size(); // net additional body size
 
-        safe_assert( additional_size <= len );
-        if (len + 1 > p_buffer_->size()) {
-            log_trace( "relarge receive buffer size to: %d", (len + 256));
-            p_buffer_->resize(len + 256);
-        }
-
-        // first async_read_until may read more additional data, if so
-        // then move additional data possible
-        if( additional_size ) {
-
-            std::string additional (boost::asio::buffers_begin(request_.data()),
-                      boost::asio::buffers_begin(request_.data()) + additional_size);
-
-            memcpy(p_buffer_->data(), additional.c_str(), additional_size + 1);
-            r_size_ = additional_size;
-
-            request_.consume(additional_size); // skip the head part
-        }
-
-        // normally, we will return these 2 cases
-        if (additional_size < len) {
-            // need to read more data here, write to r_size_
-            do_read_body();
-        }
-        else {
-            // call the process callback directly
-            read_body_handler(ec, additional_size);   // already updated r_size_
-        }
-
-        return;
 
     } else {
 

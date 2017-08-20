@@ -27,8 +27,10 @@ namespace http_proto {
     namespace header_options {
 
         static const std::string request_method("request_method_");     // (GET/POST)
-        static const std::string request_uri("request_uri_");           //
-        static const std::string http_version("http_version_");		    // HTTP/1.0|HTTP/1.1
+        static const std::string request_uri("request_uri_");           // raw uri, http://127.0.0.1:8900/docs/index.html?aa=bb
+		static const std::string request_path_info("request_path_info_"); // docs/index.html
+		static const std::string request_query_str("request_query_str_"); // aa == bb
+		static const std::string http_version("http_version_");		    // HTTP/1.0|HTTP/1.1
         static const std::string request_body("request_body_");		    // used for post
 
         static const std::string host("Host");
