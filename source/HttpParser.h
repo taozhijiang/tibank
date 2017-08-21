@@ -25,7 +25,7 @@ public:
 
     bool parse_request_header(const char* header_ptr) {
         if (!header_ptr || !strlen(header_ptr) || !strstr(header_ptr, "\r\n\r\n")) {
-            log_error( "Check raw header package failed ...");
+            log_err( "Check raw header package failed ...");
             return false;
         }
 
@@ -54,7 +54,7 @@ public:
 
 		std::string uri = find_request_header(http_proto::header_options::request_uri);
 		if (uri.empty()) {
-			log_error("Error found, head uri empty!");
+			log_err("Error found, head uri empty!");
 			return false;
 		}
 

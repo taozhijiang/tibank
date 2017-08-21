@@ -6,9 +6,9 @@ Log& Log::instance() {
 	return helper;
 }
 
-bool Log::init() {
-    openlog(program_invocation_short_name, LOG_PID | LOG_PERROR, LOG_USER);
-    setlogmask (LOG_UPTO (LOG_DEBUG));
+bool Log::init(int log_level) {
+    openlog(program_invocation_short_name, LOG_PID , LOG_USER);
+    setlogmask (LOG_UPTO (log_level));
 	return true;
 }
 

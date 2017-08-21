@@ -20,7 +20,7 @@ struct sql_conn_ptr_compare {
 class SqlConnPool: public boost::noncopyable
 {
 public:
-    SqlConnPool(size_t capacity, string host, string user,
+    SqlConnPool(size_t capacity, string host, int port, string user,
                  string passwd, string db);
 
     // 由于会返回nullptr，所以不能返回引用
@@ -47,6 +47,7 @@ private:
 
     const size_t capacity_; // total capacity
     const string host_;
+    const int port_;
     const string user_;
     const string passwd_;
     const string db_;

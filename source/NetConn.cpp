@@ -45,7 +45,7 @@ void NetConn::stop() {
 void NetConn::do_read_head() {
 
     if (get_conn_stat() != ConnStat::kConnWorking) {
-        log_error("Socket Status Error: %d", get_conn_stat());
+        log_err("Socket Status Error: %d", get_conn_stat());
         return;
     }
 
@@ -67,7 +67,7 @@ void NetConn::do_read_head() {
 void NetConn::do_read_body() {
 
     if (get_conn_stat() != ConnStat::kConnWorking) {
-        log_error("Socket Status Error: %d", get_conn_stat());
+        log_err("Socket Status Error: %d", get_conn_stat());
         return;
     }
 
@@ -90,7 +90,7 @@ void NetConn::do_read_body() {
 void NetConn::do_write() override {
 
     if (get_conn_stat() != ConnStat::kConnWorking) {
-        log_error("Socket Status Error: %d", get_conn_stat());
+        log_err("Socket Status Error: %d", get_conn_stat());
         return;
     }
 
@@ -123,7 +123,7 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
         request_.consume(bytes_transferred); // skip the already head
 
         if (!http_parser_.parse_request_header(head_str.c_str())) {
-            log_error( "Parse request error: %s", head_str.c_str());
+            log_err( "Parse request error: %s", head_str.c_str());
             goto error_return;
         }
 
@@ -131,7 +131,7 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 		// And store the items in params
 		if (!http_parser_.parse_request_uri()) {
 			std::string uri = http_parser_.find_request_header(http_proto::header_options::request_uri);
-			log_error("Prase request uri failed: %s", uri.c_str());
+			log_err("Prase request uri failed: %s", uri.c_str());
 			goto error_return;
 		}
 
@@ -146,17 +146,17 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 			std::string response_status;
 
 			if (http_server_.find_http_get_handler(real_path_info, handler) != 0){
-				log_error("uri %s handler not found, using default handler!", real_path_info.c_str());
+				log_err("uri %s handler not found, using default handler!", real_path_info.c_str());
 				handler = http_handler::default_http_get_handler;
 			} else if(!handler) {
-				log_error("real_path_info %s found, but handler empty!", real_path_info.c_str());
+				log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
 				fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
 				goto write_return;
 			}
 
 			handler(http_parser_, response_body, response_status); // just call it!
 			if (response_body.empty() || response_status.empty()) {
-				log_error("caller not generate response body!");
+				log_err("caller not generate response body!");
 				fill_http_for_send(http_proto::content_ok, http_proto::status::ok);
 			} else {
 				fill_http_for_send(response_body, response_status);
@@ -174,7 +174,7 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 
 			safe_assert( additional_size <= len );
 			if (len + 1 > p_buffer_->size()) {
-				log_trace( "relarge receive buffer size to: %d", (len + 256));
+				log_info( "relarge receive buffer size to: %d", (len + 256));
 				p_buffer_->resize(len + 256);
 			}
 
@@ -204,7 +204,7 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 			return;
 
         } else {
-			log_error("Invalid or unsupport request method: %s", http_parser_.find_request_header(http_proto::header_options::request_method).c_str());
+			log_err("Invalid or unsupport request method: %s", http_parser_.find_request_header(http_proto::header_options::request_method).c_str());
             fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
             goto write_return;
 		}
@@ -254,19 +254,19 @@ void NetConn::read_body_handler(const boost::system::error_code& ec, size_t byte
 		std::string response_body;
 		std::string response_status;
 		if (http_server_.find_http_post_handler(real_path_info, handler) != 0){
-            log_error("uri %s handler not found, and no default!", real_path_info.c_str());
+            log_err("uri %s handler not found, and no default!", real_path_info.c_str());
             fill_http_for_send(http_proto::content_not_found, http_proto::status::not_found);
         } else {
             if (handler) {
                 handler(http_parser_, std::string(p_buffer_->data(), r_size_), response_body, response_status); // call it!
                 if (response_body.empty() || response_status.empty()) {
-                    log_error("caller not generate response body!");
+                    log_err("caller not generate response body!");
                     fill_http_for_send(http_proto::content_ok, http_proto::status::ok);
                 } else {
 					fill_http_for_send(response_body, response_status);
 				}
             } else {
-                log_error("real_path_info %s found, but handler empty!", real_path_info.c_str());
+                log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
                 fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
             }
         }
@@ -325,7 +325,7 @@ void NetConn::fill_http_for_send(const char* data, size_t len, const string& sta
     safe_assert(data && len);
 
     if (!data || !len) {
-        log_error("Check send data...");
+        log_err("Check send data...");
         return;
     }
 

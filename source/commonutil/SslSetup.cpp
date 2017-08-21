@@ -61,7 +61,7 @@ bool Ssl_thread_setup() {
 	mutex_count = (long *)OPENSSL_malloc(CRYPTO_num_locks() * sizeof(long));
 
     if (!mutex_buf || !mutex_count) {
-        log_error("Alloc Ssl thread resource failed!");
+        log_err("Alloc Ssl thread resource failed!");
         return false;
     }
 
@@ -75,14 +75,14 @@ bool Ssl_thread_setup() {
 
     // SSL common routine setup
     if (!SSL_library_init()) {
-        log_error("Load SSL library failed!");
+        log_err("Load SSL library failed!");
         return false;
     }
 
     SSL_load_error_strings();
 
     if (!ssl_setup_client_ctx()) {
-        log_error("Create global SSL_CTX failed!");
+        log_err("Create global SSL_CTX failed!");
         return false;
     }
 
@@ -94,14 +94,14 @@ bool Ssl_thread_setup() {
     SSL_CTX_set_options(global_ssl_ctx, SSL_MODE_AUTO_RETRY);
 
 
-    log_trace("SSL env setup successful!");
+    log_info("SSL env setup successful!");
     return true;
 }
 
 void Ssl_thread_clean() {
 
     if (!mutex_buf) {
-        log_error("Ssl already cleaned up??");
+        log_err("Ssl already cleaned up??");
         return;
     }
 
@@ -125,7 +125,7 @@ void Ssl_thread_clean() {
     mutex_buf = NULL;
     mutex_count = 0;
 
-    log_trace("SSL env cleanup successful!");
+    log_info("SSL env cleanup successful!");
 
     return;
 }

@@ -58,12 +58,12 @@ public:
 	bool init(ThreadRunnable func, uint8_t thread_num) {
 
 		if (thread_num != thread_num_) {
-			log_trace("update thread_num_ %d -> %d", thread_num_, thread_num);
+			log_info("update thread_num_ %d -> %d", thread_num_, thread_num);
 			thread_num_ = thread_num;
 		}
 
 		if (!func) {
-			log_error("Invalid runnable object!");
+			log_err("Invalid runnable object!");
 			return false;
 		}
 		func_ = func; // record it
@@ -71,17 +71,17 @@ public:
 		for (int i=0; i<thread_num_; ++i) {
 			ThreadObjPtr workobj(new ThreadObj(ThreadStatus::kThreadInit));
 			if (!workobj) {
-				log_error("create ThreadObj failed!");
+				log_err("create ThreadObj failed!");
 				return false;
 			}
 			ThreadTtr worker(new boost::thread(boost::bind(&ThreadPool::callable_wrapper, shared_from_this(), workobj)));
 			if (!worker || !workobj) {
-				log_error("create thread failed!");
+				log_err("create thread failed!");
 				return false;
 			}
 
 			workers_[worker] = workobj;
-			log_trace("Created Task: #%d ...", i);
+			log_info("Created Task: #%d ...", i);
 		}
 
 		return true;
@@ -144,7 +144,7 @@ public:
 
 		it = workers_.find(worker);
 		if (it == workers_.end()) {
-			log_error("Target worker not found!");
+			log_err("Target worker not found!");
 			return false;
 		}
 
@@ -159,7 +159,7 @@ public:
 		}
 
 		if (it->second->status_ != ThreadStatus::kThreadDead) {
-			log_error("gracefulStop failed!");
+			log_err("gracefulStop failed!");
 			it->second->status_ = old_status; // 恢复状态
 
 			return false;
@@ -179,7 +179,7 @@ public:
 			graceful_stop(it->first, 0);
 		}
 
-		log_trace("Good! thread pool clean up down!");
+		log_info("Good! thread pool clean up down!");
 	}
 
 private:
@@ -188,24 +188,24 @@ private:
 		for (int i = 0; i < num; ++i) {
 			ThreadObjPtr workobj(new ThreadObj(ThreadStatus::kThreadInit));
 			if (!workobj) {
-				log_error("create ThreadObj failed!");
+				log_err("create ThreadObj failed!");
 				return -1;
 			}
 			ThreadTtr worker(new boost::thread(boost::bind(&ThreadPool::callable_wrapper, shared_from_this(), workobj)));
 			if (!worker || !workobj) {
-				log_error("create thread failed!");
+				log_err("create thread failed!");
 				return -1;
 			}
 
 			workers_[worker] = workobj;
 			thread_num_ ++;
-			log_trace("Created Additional Task: #%d ...", i);
+			log_info("Created Additional Task: #%d ...", i);
 
-            log_trace("Start Additional Task: #%d ...", i);
+            log_info("Start Additional Task: #%d ...", i);
             workobj->status_ = ThreadStatus::kThreadRunning;
 		}
 
-		log_trace("Current ThreadPool size: %d", thread_num_);
+		log_info("Current ThreadPool size: %d", thread_num_);
 		return 0;
 	}
 
@@ -229,7 +229,7 @@ private:
 			}
 		} while (0);
 
-		log_trace("Current ThreadPool size: %d", thread_num_);
+		log_info("Current ThreadPool size: %d", thread_num_);
 		return ((currsize - workers_.size()) >= num) ? 0 : -1;
 	}
 

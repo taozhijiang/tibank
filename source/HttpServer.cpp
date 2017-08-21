@@ -7,7 +7,7 @@
 #include "HttpServer.h"
 #include "NetConn.h"
 #include "HttpHandler.h"
-
+#include "Utils.h"
 #include "ServiceManager.h"
 #include "TimerService.h"
 
@@ -39,31 +39,40 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c
 bool HttpServer::init() {
 
 	if (!net_conns_.init()) {
-		log_error("Init net_conns_ BucketSet failed!");
+		log_err("Init net_conns_ BucketSet failed!");
 		return false;
 	}
 
 	if (!io_service_threads_.init_threads(boost::bind(&HttpServer::io_service_run, shared_from_this(), _1))) {
-		log_error("HttpServer::io_service_run init task failed!");
+		log_err("HttpServer::io_service_run init task failed!");
 		return false;
 	}
 
 	if (!net_conn_remove_threads_.init_threads(boost::bind(&HttpServer::net_conn_remove_run, shared_from_this(), _1))) {
-		log_error("HttpServer::net_conn_remove_run init task failed!");
+		log_err("HttpServer::net_conn_remove_run init task failed!");
 		return false;
 	}
 
+	// customize route uri handler
 	register_http_post_handler("/submit", http_handler::submit_handler);
 	register_http_post_handler("/query", http_handler::query_handler);
 
 
     // add purge task
-    alived_conns_.init(boost::bind(&HttpServer::add_net_conn_to_remove, this, _1), 30, 5);
+	int conn_time_out = 0;
+	int conn_time_linger = 0;
+	if (!get_config_value("http.conn_time_out", conn_time_out) || !get_config_value("http.conn_time_linger", conn_time_linger) ){
+        log_err("Error, get value error");
+        return false;
+    }
+	log_debug("socket conn time_out: %ds, linger: %ds", conn_time_out, conn_time_linger);
+    alived_conns_.init(boost::bind(&HttpServer::add_net_conn_to_remove, this, _1),
+									conn_time_out, conn_time_linger);
 
     if (ServiceManager::instance().timer_service_ptr_->register_timer_task(
                                     boost::bind(&AliveTimer<NetConn>::clean_up, &alived_conns_),
                                     5*1000, true, false) == 0) {
-		log_error("Register alive purge task failed!");
+		log_err("Register alive purge task failed!");
 		return false;
 	}
 
@@ -76,12 +85,12 @@ void HttpServer::io_service_run(ThreadObjPtr ptr) {
 
 	std::stringstream ss_id;
 	ss_id << boost::this_thread::get_id();
-	log_trace("HttpServer io_service thread %s is about to work... ", ss_id.str().c_str());
+	log_info("HttpServer io_service thread %s is about to work... ", ss_id.str().c_str());
 
     while (true) {
 
 		if (unlikely(ptr->status_ == ThreadStatus::kThreadTerminating)) {
-			log_error("Thread %s is about to terminating...", ss_id.str().c_str());
+			log_err("Thread %s is about to terminating...", ss_id.str().c_str());
 			break;
 		}
 
@@ -95,13 +104,13 @@ void HttpServer::io_service_run(ThreadObjPtr ptr) {
         io_service_.run(ec);
 
         if (ec){
-            log_error("io_service stopped...");
+            log_err("io_service stopped...");
             break;
         }
     }
 
 	ptr->status_ = ThreadStatus::kThreadDead;
-	log_trace("HttpServer io_service thread %s is about to terminate ... ", ss_id.str().c_str());
+	log_info("HttpServer io_service thread %s is about to terminate ... ", ss_id.str().c_str());
 
 	return;
 }
@@ -117,7 +126,7 @@ void HttpServer::do_accept() {
 void HttpServer::accept_handler(const boost::system::error_code& ec, socket_shared_ptr sock_ptr) {
 
     if (ec) {
-        log_error("Error during accept!");
+        log_err("Error during accept!");
         return;
     }
 
@@ -144,7 +153,7 @@ int HttpServer::register_http_post_handler(std::string uri, HttpPostHandler hand
     std::map<std::string, HttpPostHandler>::const_iterator it;
     for (it = http_post_handler_.cbegin(); it!=http_post_handler_.cend(); ++it) {
         if (boost::iequals(uri, it->first))
-            log_error("Handler for %s already exists, override it!", uri.c_str());
+            log_err("Handler for %s already exists, override it!", uri.c_str());
     }
 
     http_post_handler_[uri] = handler;
@@ -178,7 +187,7 @@ int HttpServer::register_http_get_handler(std::string uri, HttpGetHandler handle
     std::map<std::string, HttpGetHandler>::const_iterator it;
     for (it = http_get_handler_.cbegin(); it!=http_get_handler_.cend(); ++it) {
         if (boost::iequals(uri, it->first))
-            log_error("Handler for %s already exists, override it!", uri.c_str());
+            log_err("Handler for %s already exists, override it!", uri.c_str());
     }
 
     http_get_handler_[uri] = handler;
@@ -205,7 +214,7 @@ int HttpServer::find_http_get_handler(std::string uri, HttpGetHandler& handler){
 
 int HttpServer::io_service_stop_graceful() {
 
-	log_error("About to stop io_service... ");
+	log_err("About to stop io_service... ");
 	io_service_.stop();
 	io_service_threads_.graceful_stop_threads();
 
@@ -217,7 +226,7 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 
 	std::stringstream ss_id;
 	ss_id << boost::this_thread::get_id();
-	log_trace("HttpServer net_conn_remove thread %s is about to work... ", ss_id.str().c_str());
+	log_info("HttpServer net_conn_remove thread %s is about to work... ", ss_id.str().c_str());
 
     while (true) {
 
@@ -242,7 +251,7 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 
 		if (net_conn_ptr shared_ptr = net_conn_weak_ptr.lock()) {
 			if (shared_ptr->get_conn_stat() != ConnStat::kConnError) {
-				log_error("Warning, remove unerror conn: %d", shared_ptr->get_conn_stat());
+				log_err("Warning, remove unerror conn: %d", shared_ptr->get_conn_stat());
 			}
 
 			// log_debug("do remove ... ");
@@ -254,7 +263,7 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
     }
 
 	ptr->status_ = ThreadStatus::kThreadDead;
-	log_trace("HttpServer net_conn_remove thread %s is about to terminate ... ", ss_id.str().c_str());
+	log_info("HttpServer net_conn_remove thread %s is about to terminate ... ", ss_id.str().c_str());
 
 	return;
 }
@@ -262,7 +271,7 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 
 int HttpServer::net_conn_remove_stop_graceful() {
 
-	log_error("About to stop net_conn_remove thread ... ");
+	log_err("About to stop net_conn_remove thread ... ");
 	net_conn_remove_threads_.graceful_stop_threads();
 
 	return 0;

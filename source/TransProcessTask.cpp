@@ -12,7 +12,7 @@ extern const char* TiBANK_DATABASE_PREFIX;
 bool TransProcessTask::init() {
 
 	if (! trans_process_task_.init_threads(boost::bind(&TransProcessTask::trans_process_task_run, shared_from_this(),_1))) {
-		log_error("TransProcessTask::init failed!");
+		log_err("TransProcessTask::init failed!");
 		return false;
 	}
 
@@ -29,7 +29,7 @@ int do_process_task(EQueueDataPtr qd) {
     request_scoped_sql_conn(conn);
     safe_assert(conn);
     if (!conn){
-        log_error("Get SQL connection failed!");
+        log_err("Get SQL connection failed!");
         return -1;
     }
 
@@ -44,7 +44,7 @@ int do_process_task(EQueueDataPtr qd) {
                                                 qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_)));
 
         if (!result || result->rowsCount() != 1){
-            log_error("Failed to query trans order info" );
+            log_err("Failed to query trans order info" );
             return -1;
         }
 
@@ -57,21 +57,21 @@ int do_process_task(EQueueDataPtr qd) {
 
         result->next();
         if (!cast_raw_value(result, 1, F_account_no, F_account_name, F_amount, F_branch_no, F_branch_name, F_status_l)){
-            log_error("Failed to cast trans order info ..." );
+            log_err("Failed to cast trans order info ..." );
             nResult = -1;
             break;
         }
 
-        log_trace("Trans Info: %s %s %ld %s %s -> %d", F_account_no.c_str(), F_account_name.c_str(), F_amount,
+        log_info("Trans Info: %s %s %ld %s %s -> %d", F_account_no.c_str(), F_account_name.c_str(), F_amount,
                                     F_branch_no.c_str(), F_branch_name.c_str(), F_status_l);
         if (F_status_l != TransStatus::kTransInProcess) {
-            log_error("Invalid trans status: %d", F_status_l);
+            log_err("Invalid trans status: %d", F_status_l);
             nResult = -1;
             break;
         }
 
         if (F_amount >= 100*10000*100) { // 单笔不超过100W
-            log_error("F_amount error: %ld", F_amount);
+            log_err("F_amount error: %ld", F_amount);
             F_status = TransStatus::kTransFail;
             F_errcode = TransResponseCode::kTransResponseAmountErr;
             break;
@@ -95,7 +95,7 @@ int do_process_task(EQueueDataPtr qd) {
                                                 F_status, F_errcode, qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_));
 
         if (affected != 1){
-            log_error("Failed to update trans order info" );
+            log_err("Failed to update trans order info" );
             nResult = -1;
         } else
             nResult = 0;
@@ -108,7 +108,7 @@ void TransProcessTask::trans_process_task_run(ThreadObjPtr ptr) {
 
 	std::stringstream ss_id;
 	ss_id << boost::this_thread::get_id();
-	log_trace("TransProcessTask thread %s is about to work... ", ss_id.str().c_str());
+	log_info("TransProcessTask thread %s is about to work... ", ss_id.str().c_str());
 
 	// main task loop here!
 
@@ -128,20 +128,20 @@ void TransProcessTask::trans_process_task_run(ThreadObjPtr ptr) {
 		std::list<EQueueDataPtr> tasks;
 		nResult = get_unfinished_trans_process_task(tasks, 5, 60 /*1min*/);
 		if (nResult) {
-			log_error("Retrive task error!!!!!!");
+			log_err("Retrive task error!!!!!!");
 			::sleep(5);
 			continue;
 		}
 
 		if (tasks.empty()) {
-			// yk_api::log_trace("Retrive back task empty!");
+			// yk_api::log_info("Retrive back task empty!");
 			::sleep(5);
 			continue;
 		}
 
 		for (std::list<EQueueDataPtr>::const_iterator it = tasks.begin(); it != tasks.end(); ++it) {
 			if (do_process_task(*it) == 0) {	 //back ok
-				log_trace("task finished: (%s %s %d)", (*it)->merch_id_.c_str(), (*it)->trans_id_.c_str(), (*it)->account_type_);
+				log_info("task finished: (%s %s %d)", (*it)->merch_id_.c_str(), (*it)->trans_id_.c_str(), (*it)->account_type_);
 				finish_trans_process_task(*it, TaskStatusType::kTaskStatusFinished);
 			}
 			else {
@@ -152,7 +152,7 @@ void TransProcessTask::trans_process_task_run(ThreadObjPtr ptr) {
 	}
 
 	ptr->status_ = ThreadStatus::kThreadDead;
-	log_trace("TransProcessTask thread %s is about to terminate ... ", ss_id.str().c_str());
+	log_info("TransProcessTask thread %s is about to terminate ... ", ss_id.str().c_str());
 
 	return;
 }
@@ -166,7 +166,7 @@ int creat_trans_process_task(EQueueDataPtr qd) {
 
     safe_assert(conn);
     if (!conn){
-        log_error("Get SQL connection failed!");
+        log_err("Get SQL connection failed!");
         return -1;
     }
 
@@ -183,7 +183,7 @@ int creat_trans_process_task(EQueueDataPtr qd) {
 
 	// on duplicate 生效的时候 affected == 2
 	if(count_affected != 1 && count_affected != 2){
-		log_error("Failed to insert %s.t_equeue_data for task (%s, %s, %d)",
+		log_err("Failed to insert %s.t_equeue_data for task (%s, %s, %d)",
 						  TiBANK_DATABASE_PREFIX, qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_);
         return -1;
 	}
@@ -198,12 +198,12 @@ int touch_trans_process_task(EQueueDataPtr qd) {
 
     safe_assert(conn);
     if (!conn){
-        log_error("Get SQL connection failed!");
+        log_err("Get SQL connection failed!");
         return -1;
     }
 
     if (!qd) {
-        log_error("Invalid task qd");
+        log_err("Invalid task qd");
         return -1;
     }
 
@@ -213,7 +213,7 @@ int touch_trans_process_task(EQueueDataPtr qd) {
                                     TiBANK_DATABASE_PREFIX, TaskStatusType::kTaskStatusWaiting, TaskType::kTaskTypeTransProcess,
                                     qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_));
 
-    log_trace("touch task (%s, %s, %d)", qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_);
+    log_info("touch task (%s, %s, %d)", qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_);
 	return numAffected == 1;
 }
 
@@ -232,17 +232,17 @@ int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStat
 
     safe_assert(conn);
     if (!conn){
-        log_error("Get SQL connection failed!");
+        log_err("Get SQL connection failed!");
         return -1;
     }
 
     if (!qd){
-        log_error("Invalid task qd");
+        log_err("Invalid task qd");
         return -1;
     }
 
 	if (stat != TaskStatusType::kTaskStatusFinished && stat != TaskStatusType::kTaskStatusFailed ) {
-		log_error("Invalid task target stat: %d", stat);
+		log_err("Invalid task target stat: %d", stat);
 		return -1;
 	}
 
@@ -257,7 +257,7 @@ int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStat
                                      qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_)));
 
 		if (!result || result->rowsCount() != 1){
-			log_error("Failed to query t_equeue_data for finish ..." );
+			log_err("Failed to query t_equeue_data for finish ..." );
 			nResult = -1;
 			break;
 		}
@@ -267,7 +267,7 @@ int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStat
         result->next();
 
         if (!cast_raw_value(result, 1, F_process_count, F_create_time)){
-            log_error("Failed to cast t_equeue_data for finish ..." );
+            log_err("Failed to cast t_equeue_data for finish ..." );
 			nResult = -1;
 			break;
         }
@@ -283,7 +283,7 @@ int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStat
                                      qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_, F_process_count, F_create_time.c_str()));
 
 		if(numAffected != 1){
-			log_error("insert finished task to t_equeue_data_finished failed for taskId(%s, %s, %d)",
+			log_err("insert finished task to t_equeue_data_finished failed for taskId(%s, %s, %d)",
                                 qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_);
             nResult = -1;
 		}
@@ -296,7 +296,7 @@ int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStat
                                  TaskType::kTaskTypeTransProcess));
 
         if(numAffected != 1){
-            log_error("delete finish task failed!");
+            log_err("delete finish task failed!");
             nResult = -1;
         }
 
@@ -315,7 +315,7 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
 
     safe_assert(conn);
     if (!conn){
-        log_error("Get SQL connection failed!");
+        log_err("Get SQL connection failed!");
         return -1;
     }
 
@@ -334,7 +334,7 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
                                             TaskStatusType::kTaskStatusWaiting, TaskStatusType::kTaskStatusInProcess, batch_size)));
 
         if (!result) {
-            log_error("查找任务失败！");
+            log_err("查找任务失败！");
             nResult = -1;
             break;
         }
@@ -348,20 +348,20 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
             int F_process_count = 0;
 
             if (!cast_raw_value(result, 1, F_id, F_merch_id, F_trans_id, F_account_type, F_process_count)){
-                log_error("cast date error!");
+                log_err("cast date error!");
                 continue;
             }
 
 			EQueueDataPtr qd = boost::make_shared<EQueueData>(F_merch_id, F_trans_id, F_account_type);
 			if (!qd) {
-				log_error("New process task object failed: '%s', '%s', '%d' ", F_merch_id.c_str(), F_trans_id.c_str(), F_account_type);
+				log_err("New process task object failed: '%s', '%s', '%d' ", F_merch_id.c_str(), F_trans_id.c_str(), F_account_type);
 				continue;
 			}
 			qd->process_count_ = F_process_count;
 
 			// 查看回盘操作的次数限制
 			if (qd->process_count_ >= 5) {
-				log_error("Max process count exceeded: %d - %d, ('%s', '%s', %d)", F_process_count, 5, F_merch_id.c_str(), F_trans_id.c_str(), F_account_type);
+				log_err("Max process count exceeded: %d - %d, ('%s', '%s', %d)", F_process_count, 5, F_merch_id.c_str(), F_trans_id.c_str(), F_account_type);
 				finish_trans_process_task(conn, qd, TaskStatusType::kTaskStatusFailed);
 				continue;
 			}
@@ -377,7 +377,7 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
                             TaskStatusType::kTaskStatusInProcess, F_id, TaskType::kTaskTypeTransProcess));
 
 			if(numAffected != 1){
-				log_error("Failed to update %s.t_equeue_data for taskId(%ld)", TiBANK_DATABASE_PREFIX, F_id);
+				log_err("Failed to update %s.t_equeue_data for taskId(%ld)", TiBANK_DATABASE_PREFIX, F_id);
 				nResult = -1;
 				break;
 			}

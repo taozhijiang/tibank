@@ -64,7 +64,7 @@ public:
 	bool init() {
 		items_ = new (std::nothrow) SetItem<T>[bucket_size_];
 		if (!items_) {
-			log_error("Init BucketSet pool failed!");
+			log_err("Init BucketSet pool failed!");
 			return false;
 		}
 

@@ -13,15 +13,15 @@ bool TimerService::init() {
 
     ev_base_ = event_base_new();
 	if (!ev_base_) {
-		log_error("Creating event_base failed!");
+		log_err("Creating event_base failed!");
 		return false;
 	}
 
-	log_trace("Current Using Method: %s", event_base_get_method(ev_base_)); // epoll
+	log_info("Current Using Method: %s", event_base_get_method(ev_base_)); // epoll
 
 	// add purge task
 	if (register_timer_task(boost::bind(&TimerService::purge_dead_task, shared_from_this()), 5*1000, true, true) == 0) {
-		log_error("Register purge task failed!");
+		log_err("Register purge task failed!");
 		return false;
 	}
 
@@ -34,7 +34,7 @@ void c_timer_cb(int fd, short what, void *arg) {
 
 void TimerService::timer_cb (int fd, short what, void *arg) {
 	if (fd != -1 || !(what & (EV_READ | EV_TIMEOUT) ) ) {
-		log_error("Invalid check: %d, %d, %d, %d ", fd, what, EV_READ, EV_TIMEOUT);
+		log_err("Invalid check: %d, %d, %d, %d ", fd, what, EV_READ, EV_TIMEOUT);
 		return;
 	}
 
@@ -69,14 +69,14 @@ void TimerService::timer_run() {
 	// we must register at least forever task to avoid event_base_loop exit
 
 	int nResult = event_base_loop(ev_base_, 0);
-	log_error("event_base_loop terminating here with: %d", nResult);
+	log_err("event_base_loop terminating here with: %d", nResult);
 }
 
 void TimerService::timer_defer_run(ThreadObjPtr ptr){
 
 	std::stringstream ss_id;
 	ss_id << boost::this_thread::get_id();
-	log_trace("PbiTimerService thread %s is about to work... ", ss_id.str().c_str());
+	log_info("PbiTimerService thread %s is about to work... ", ss_id.str().c_str());
 
 	TimerEventCallable func;
 
@@ -93,12 +93,12 @@ void TimerService::timer_defer_run(ThreadObjPtr ptr){
 		}
 
 		if (!defer_ready_.POP(func, 3 * 1000 /*3s*/)) {
-			// yk_api::log_trace("timer task timeout return!");
+			// yk_api::log_info("timer task timeout return!");
 			continue;
 		}
 
 		if (!func){
-			log_error("timer task empty func return!");
+			log_err("timer task empty func return!");
 			continue;
 		}
 
@@ -106,7 +106,7 @@ void TimerService::timer_defer_run(ThreadObjPtr ptr){
 	}
 
 	ptr->status_ = ThreadStatus::kThreadDead;
-	log_trace("PbiTimerService thread %s is about to terminate ... ", ss_id.str().c_str());
+	log_info("PbiTimerService thread %s is about to terminate ... ", ss_id.str().c_str());
 
 	return;
 }
@@ -116,7 +116,7 @@ int TimerService::start_timer(){
 	timer_thread_ = boost::thread(boost::bind(&TimerService::timer_run, shared_from_this()));
 
 	if (! timer_defer_.init_threads(boost::bind(&TimerService::timer_defer_run, shared_from_this(),_1))) {
-		log_error("PbiTimerService::init failed!");
+		log_err("PbiTimerService::init failed!");
 		return -1;
 	}
 
@@ -132,13 +132,13 @@ int TimerService::stop_graceful() {
 
 		for (it = tasks_.begin(); it != tasks_.end(); /**/ ) {
 			evtimer_del(&it->second->ev_timer_);
-			log_trace("purge task %ld", it->first);
+			log_info("purge task %ld", it->first);
 			tmp = it ++;
 			tasks_.erase(tmp);
 		}
 	}
 
-	log_trace("CURRENT PENDING WORK: %lu", defer_ready_.SIZE());
+	log_info("CURRENT PENDING WORK: %lu", defer_ready_.SIZE());
 	timer_defer_.graceful_stop_threads();
 
 	return 0;
@@ -197,7 +197,7 @@ int TimerService::add_task(TimerTaskPtr task_ptr) {
 	boost::lock_guard<boost::mutex> lock(tasks_lock_);
 	std::map<int64_t, TimerTaskPtr>::iterator it = tasks_.find(index);
 	if (it != tasks_.end()) {
-		log_error("The timer task already found: %ld", reinterpret_cast<int64_t>(task_ptr.get()));
+		log_err("The timer task already found: %ld", reinterpret_cast<int64_t>(task_ptr.get()));
 		return -1;
 	}
 
@@ -218,7 +218,7 @@ void TimerService::purge_dead_task(){
 
 	for (it = tasks_.begin(); it != tasks_.end(); /**/ ) {
 		if(it->second->dead_) {
-			log_trace("purge task %ld", it->first);
+			log_info("purge task %ld", it->first);
 			tmp = it ++;
             tasks_.erase(tmp);
 		} else {

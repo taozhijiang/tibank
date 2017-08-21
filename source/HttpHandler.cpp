@@ -30,7 +30,7 @@ int submit_handler(const HttpParser& http_parser, const std::string& post_data, 
     trans_submit_response submit_ret;
 
     if (!reader.parse(post_data, root) || root.isNull()) {
-        log_error("parse error for: %s", post_data.c_str());
+        log_err("parse error for: %s", post_data.c_str());
         goto error_ret;
     }
 
@@ -40,7 +40,7 @@ int submit_handler(const HttpParser& http_parser, const std::string& post_data, 
             mapParam[*iter] = root[*iter].asString();
         }
     } catch (std::exception& e){
-        log_error("get string member error for: %s", post_data.c_str());
+        log_err("get string member error for: %s", post_data.c_str());
         goto error_ret;
     }
 
@@ -59,7 +59,7 @@ int submit_handler(const HttpParser& http_parser, const std::string& post_data, 
 #else
         mapParam.find("remarks") == mapParam.end()) {
 #endif
-        log_error("param check error for: %s", post_data.c_str());
+        log_err("param check error for: %s", post_data.c_str());
         goto error_ret;
     }
 
@@ -83,7 +83,7 @@ int submit_handler(const HttpParser& http_parser, const std::string& post_data, 
 
 #if 0
     if (SignHelper::instance().check_sign(mapParam) != 0) {
-        log_error("Sign check error for: %s", post_data.c_str());
+        log_err("Sign check error for: %s", post_data.c_str());
         submit_ret.trans_err_code = TransErrCode::kTransErrParam;
         submit_ret.trans_err_str = get_trans_err_str(TransErrCode::kTransErrParam);
         goto error_ret2;
@@ -119,7 +119,7 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
     trans_query_response query_ret;
 
     if (!reader.parse(post_data, root) || root.isNull()) {
-        log_error("parse error for: %s", post_data.c_str());
+        log_err("parse error for: %s", post_data.c_str());
         goto error_ret;
     }
 
@@ -129,7 +129,7 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
             mapParam[*iter] = root[*iter].asString();
         }
     } catch (std::exception& e){
-        log_error("get string member error for: %s", post_data.c_str());
+        log_err("get string member error for: %s", post_data.c_str());
         goto error_ret;
     }
 
@@ -144,7 +144,7 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
 #else
         mapParam.find("account_type") == mapParam.end()) {
 #endif
-        log_error("param check error for: %s", post_data.c_str());
+        log_err("param check error for: %s", post_data.c_str());
         goto error_ret;
     }
 
@@ -164,7 +164,7 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
 
 #if 0
     if (SignHelper::instance().check_sign(mapParam) != 0) {
-        log_error("Sign check error for: %s", post_data.c_str());
+        log_err("Sign check error for: %s", post_data.c_str());
         query_req.trans_err_code = TransErrCode::kTransErrParam;
         query_req.trans_err_str = get_trans_err_str(TransErrCode::kTransErrParam);
         goto error_ret2;
@@ -201,14 +201,14 @@ static bool check_and_sendfile(std::string regular_file_path, std::string& respo
 	// check dest is directory or regular?
 	struct stat sb;
 	if (stat(regular_file_path.c_str(), &sb) == -1) {
-		log_error("Stat file error: %s", regular_file_path.c_str());
+		log_err("Stat file error: %s", regular_file_path.c_str());
 		response = http_proto::content_error;
 		status = http_proto::status::internal_server_error;
 		return false;
 	}
 
 	if (sb.st_size > 100*1024*1024 /*100M*/) {
-		log_error("Too big file size: %ld", sb.st_size);
+		log_err("Too big file size: %ld", sb.st_size);
 		response = http_proto::content_bad_request;
 		status = http_proto::status::bad_request;
 		return false;
@@ -229,14 +229,14 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 
 	const UriParamContainer& params = http_parser.get_request_uri_params();
 	if (!params.EMPTY()) {
-		log_error("Default handler just for static file transmit, we can not handler uri parameters...");
+		log_err("Default handler just for static file transmit, we can not handler uri parameters...");
 	}
 
 	std::string real_file_path = get_document_root() + "/" + http_parser.find_request_header(http_proto::header_options::request_path_info);
 
 	// check dest exist?
 	if (::access(real_file_path.c_str(), R_OK) != 0) {
-		log_error("File not found: %s", real_file_path.c_str());
+		log_err("File not found: %s", real_file_path.c_str());
 		response = http_proto::content_not_found;
 		status = http_proto::status::not_found;
 		return -1;
@@ -245,7 +245,7 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 	// check dest is directory or regular?
 	struct stat sb;
 	if (stat(real_file_path.c_str(), &sb) == -1) {
-		log_error("Stat file error: %s", real_file_path.c_str());
+		log_err("Stat file error: %s", real_file_path.c_str());
 		response = http_proto::content_error;
 		status = http_proto::status::internal_server_error;
 		return -1;
@@ -262,7 +262,7 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 				const std::vector<std::string> &indexes = get_document_index();
 				for (std::vector<std::string>::const_iterator iter = indexes.cbegin(); iter != indexes.cend(); ++iter) {
 					std::string file_path = real_file_path + "/" + *iter;
-					log_trace("Trying: %s", file_path.c_str());
+					log_info("Trying: %s", file_path.c_str());
 					if (check_and_sendfile(file_path, response, status)) {
 						OK = true;
 						break;

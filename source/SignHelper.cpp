@@ -23,13 +23,13 @@ bool SignHelper::init() {
 
 	tibank_app_public_key_ = import_public_key("../signfile/app_public_key.pem");
 	if (!tibank_app_public_key_) {
-		log_error("Import app public key failed, fatal!");
+		log_err("Import app public key failed, fatal!");
 		return false;
 	}
 
     tibank_platform_private_key_ = import_private_key("../signfile/platform_private_key.pem");
 	if (!tibank_platform_private_key_) {
-		log_error("Import platform private key failed, fatal!");
+		log_err("Import platform private key failed, fatal!");
 		return false;
 	}
 
@@ -43,7 +43,7 @@ EVP_PKEY* SignHelper::import_public_key(const char* keyfile){
 
 	FILE *fp = fopen(keyfile, "r");
 	if(fp == NULL){
-		log_error("read file error");
+		log_err("read file error");
 		return NULL;
 	}
 
@@ -58,7 +58,7 @@ EVP_PKEY* SignHelper::import_public_key(const char* keyfile){
 	}
 
 	if(pkey == NULL){
-		log_error("get pub key error");
+		log_err("get pub key error");
 	}
 
 	fclose(fp);
@@ -70,13 +70,13 @@ EVP_PKEY* SignHelper::import_private_key(const char* keyfile){
     EVP_PKEY* pkey = NULL;
     FILE *fp = fopen(keyfile, "r");
     if(fp == NULL) {
-        log_error("load private key file failed");
+        log_err("load private key file failed");
         return false;
     }
     ::rewind(fp);
     pkey = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
     if (!pkey)
-        log_error("load private key error!");
+        log_err("load private key error!");
 
     fclose(fp);
 
@@ -131,7 +131,7 @@ int SignHelper::calc_sign(const std::map<std::string, std::string>& mapParam, st
 
     for (std::map<std::string, std::string>::const_iterator iter = mapParam.begin(); iter != mapParam.end(); iter++) {
         if (iter->first == "sign"){
-            log_error("we cannot sign object with sign provide!");
+            log_err("we cannot sign object with sign provide!");
             return -1;
         }
 
@@ -143,7 +143,7 @@ int SignHelper::calc_sign(const std::map<std::string, std::string>& mapParam, st
 
     std::string strDataForSHA1 = osForSHA1.str();
 	strDataForSHA1 = strDataForSHA1.substr(0, strDataForSHA1.size() - 1); //删除结尾的&
-    // log_trace("strDataForSHA1:%s", strDataForSHA1.c_str());
+    // log_info("strDataForSHA1:%s", strDataForSHA1.c_str());
 
     unsigned char sha1value[20];
 	EVP_MD_CTX ctx;
@@ -177,16 +177,16 @@ int SignHelper::check_sign(const std::map<std::string, std::string>& mapParam) {
 	}
 
 	if (strSign.empty()) {
-		log_error("sign not found or empty");
+		log_err("sign not found or empty");
 		return -2;
 	}
 
 	std::string strDataForSHA1 = osForSHA1.str();
 	std::string strNeedSHA1Data = strDataForSHA1;
-	log_error("strNeedSHA1Data:%s", strNeedSHA1Data.c_str());
+	log_err("strNeedSHA1Data:%s", strNeedSHA1Data.c_str());
 
 	if(sha1_with_rsa_verify(tibank_app_public_key_, strNeedSHA1Data, strSign)){
-		log_error("str: %s, sign: %s ", strNeedSHA1Data.c_str(), strSign.c_str());
+		log_err("str: %s, sign: %s ", strNeedSHA1Data.c_str(), strSign.c_str());
 		return -4;
 	}
 
@@ -200,7 +200,7 @@ int SignHelper::check_sign(const std::string& strJson) {
 	Json::Reader reader;
 
     if(!reader.parse(strJson, root) || root.isNull()) {
-        log_error("parse error for: %s", strJson.c_str());
+        log_err("parse error for: %s", strJson.c_str());
         return -1;
     }
 

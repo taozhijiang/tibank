@@ -12,7 +12,7 @@ public:
 		thread_num_init_(1) {
 		threads_ptr_ = boost::make_shared<ThreadPool>(thread_num_init_);
 		if (!threads_ptr_) {
-			log_error("Init create thread pool failed, CRITICAL!!!!");
+			log_err("Init create thread pool failed, CRITICAL!!!!");
 			::abort();
 		}
 	}
@@ -20,13 +20,13 @@ public:
 	explicit ThreadPoolHelper(uint8_t thread_num):
 		thread_num_init_(thread_num) {
 		if (thread_num_init_ == 0 || thread_num_init_ > kMaxiumThreadPoolSize ){
-			log_error("Invalid thread_number %d,, CRITICAL !!!", thread_num_init_);
+			log_err("Invalid thread_number %d,, CRITICAL !!!", thread_num_init_);
 			::abort();
 		}
 
 		threads_ptr_ = boost::make_shared<ThreadPool>(thread_num_init_);
 		if (!threads_ptr_) {
-			log_error("Init create thread pool failed, CRITICAL!!!!");
+			log_err("Init create thread pool failed, CRITICAL!!!!");
 			::abort();
 		}
 	}

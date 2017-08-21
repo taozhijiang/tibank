@@ -33,7 +33,7 @@ std::string get_trans_status_str(int stat) {
             break;
         default:
             ret = "无意义状态";
-            log_error("无意义状态：%d", stat);
+            log_err("无意义状态：%d", stat);
     }
 
     return std::string(ret);
@@ -68,7 +68,7 @@ std::string get_trans_response_str(int code) {
 
         default:
             ret = "未知错误";
-            log_error("未知错误：%d", code);
+            log_err("未知错误：%d", code);
     }
 
     return std::string(ret);
@@ -105,7 +105,7 @@ int process_trans_submit(const struct trans_submit_request& req, struct trans_su
 
     safe_assert(conn);
     if (!conn){
-        log_error("Get SQL connection failed!");
+        log_err("Get SQL connection failed!");
         ret.trans_status = TransStatus::kTransNonsense;
         ret.trans_resp_code = TransResponseCode::kTransResponseSystemErr;
         return -1;
@@ -119,14 +119,14 @@ int process_trans_submit(const struct trans_submit_request& req, struct trans_su
                    "AND F_account_type=%d ", TiBANK_DATABASE_PREFIX, get_db_table_index(req.trans_id),
                     req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str(), req.account_no.c_str(),
                     req.account_name.c_str(), req.account_type), count) ) {
-        log_error("订单防重查询失败：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
+        log_err("订单防重查询失败：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
         ret.trans_status = TransStatus::kTransSubmitFail;
         ret.trans_resp_code = TransResponseCode::kTransResponseSystemErr;
         return -1;
     }
 
     if (count > 0){
-        log_error("订单重复：%d, F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", count,
+        log_err("订单重复：%d, F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", count,
                    req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
         ret.trans_status = TransStatus::kTransSubmitFail;
         ret.trans_resp_code = TransResponseCode::kTransResponseDupReqErr;
@@ -141,13 +141,13 @@ int process_trans_submit(const struct trans_submit_request& req, struct trans_su
                     req.account_name.c_str(), req.amount, req.account_type, req.branch_no.c_str(),
                     req.branch_name.c_str(), req.remarks.c_str(), TransStatus::kTransInProcess))) {
 
-        log_error("插入订单异常： F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
+        log_err("插入订单异常： F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
         ret.trans_status = TransStatus::kTransNonsense;
         ret.trans_resp_code = TransResponseCode::kTransResponseSystemErr;
         return -1;
     }
 
-    log_trace("订单提交OK： F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
+    log_info("订单提交OK： F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
     ret.trans_status = TransStatus::kTransInProcess;
     ret.trans_resp_code = TransResponseCode::kTransResponseOK;
 
@@ -177,7 +177,7 @@ int generate_trans_submit_ret(const trans_submit_response& ret, std::string& pos
 
     std::string sign;
     if (SignHelper::instance().calc_sign(map_param, sign) != 0) {
-        log_error("calc sign error!");
+        log_err("calc sign error!");
         return -1;
     }
 
@@ -206,7 +206,7 @@ int process_trans_query(const struct trans_query_request& req, struct trans_quer
 
     safe_assert(conn);
     if (!conn){
-        log_error("Get SQL connection failed!");
+        log_err("Get SQL connection failed!");
         ret.trans_status = TransStatus::kTransNonsense;
         ret.trans_resp_code = TransResponseCode::kTransResponseSystemErr;
         return -1;
@@ -220,14 +220,14 @@ int process_trans_query(const struct trans_query_request& req, struct trans_quer
                     req.account_name.c_str(), req.account_type)));
 
     if (!result) {
-        log_error("订单查询失败：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
+        log_err("订单查询失败：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
         ret.trans_status = TransStatus::kTransNonsense;
         ret.trans_resp_code = TransResponseCode::kTransResponseSystemErr;
         return -1;
     }
 
     if (result->rowsCount() == 0){
-        log_error("订单未找到：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
+        log_err("订单未找到：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
         ret.trans_status = TransStatus::kTransNotFound;
         ret.trans_resp_code = TransResponseCode::kTransResponseOK;
 
@@ -237,10 +237,10 @@ int process_trans_query(const struct trans_query_request& req, struct trans_quer
     int64_t F_status; int64_t F_errcode;
     result->next();
     if(cast_raw_value(result, 1, F_status, F_errcode)) {
-        log_trace("订单状态：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s => %s, %s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str(),
+        log_info("订单状态：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s => %s, %s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str(),
                   get_trans_status_str(F_status).c_str(), get_trans_response_str(F_errcode).c_str());
     } else {
-        log_error("查询数据库异常：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
+        log_err("查询数据库异常：F_merch_id='%s', F_merch_name='%s', F_trans_id='%s'", req.merch_id.c_str(), req.merch_name.c_str(), req.trans_id.c_str());
         ret.trans_status = TransStatus::kTransNotFound;
         ret.trans_resp_code = TransResponseCode::kTransResponseOK;
     }
@@ -271,7 +271,7 @@ int generate_trans_query_ret(const trans_query_response& ret, std::string& post_
 
     std::string sign;
     if (SignHelper::instance().calc_sign(map_param, sign) != 0) {
-        log_error("calc sign error!");
+        log_err("calc sign error!");
         return -1;
     }
 

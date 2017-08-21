@@ -75,7 +75,7 @@ public:
 		boost::unique_lock<boost::mutex> lock(lock_);
 		typename HashContainer::iterator iter = hashed_items_.find(ptr.get());
 		if (iter == hashed_items_.end()) {
-			log_error("touched item not found!");
+			log_err("touched item not found!");
 			return false;
 		}
 
@@ -87,7 +87,7 @@ public:
 
         if (items_.find(before) == items_.end()){
             safe_assert(false);
-            log_error("bucket tm: %ld not found, critical error!", before);
+            log_err("bucket tm: %ld not found, critical error!", before);
             return false;
         }
 
@@ -110,14 +110,14 @@ public:
 		boost::unique_lock<boost::mutex> lock(lock_);
 		typename HashContainer::iterator iter = hashed_items_.find(ptr.get());
 		if (iter != hashed_items_.end()) {
-			log_error("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
+			log_err("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
                             iter->second->get_raw_ptr());
 			return false;
 		}
 
 		active_item_ptr alive_item = boost::make_shared<AliveItem<T> >(tm, ptr);
         if (!alive_item){
-            log_error("Create AliveItem failed!");
+            log_err("Create AliveItem failed!");
             return false;
         }
 
@@ -136,7 +136,7 @@ public:
 
         // log_debug("clean_up check ... ");
         if (!initialized_) {
-            log_error("not initialized, please check ...");
+            log_err("not initialized, please check ...");
             return false;
         }
 
@@ -151,7 +151,7 @@ public:
                     T* p = (*it)->get_raw_ptr();
                     if (hashed_items_.find(p) == hashed_items_.end()) {
                         safe_assert(false);
-                        log_error("hashed item: %p not found, critical error!", p);
+                        log_err("hashed item: %p not found, critical error!", p);
                     }
 
                     log_debug("hash item remove: %p, %ld", p, (*it)->get_expire_time());

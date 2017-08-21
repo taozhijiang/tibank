@@ -53,7 +53,7 @@ bool cast_raw_value(shared_result_ptr result, const uint32_t idx, T& val) {
         val = static_cast<T>(result->getUInt64(idx));
     }
     else {
-        log_error("Tell unsupported type: %s", typeid(T).name());
+        log_err("Tell unsupported type: %s", typeid(T).name());
         return false;
     }
 
@@ -81,7 +81,7 @@ class SqlConn: public boost::noncopyable {
 public:
     explicit SqlConn(SqlConnPool& pool);
     ~SqlConn();
-    bool init(int64_t conn_uuid, string host, string user, string passwd, string db);
+    bool init(int64_t conn_uuid, string host, int port, string user, string passwd, string db);
 
     void set_uuid(int64_t uuid) { conn_uuid_ = uuid; }
     int64_t get_uuid() { return conn_uuid_; }
@@ -121,7 +121,7 @@ bool SqlConn::sqlconn_execute_query_value(const string& sql, T& val) {
     try {
 
         if(!conn_->isValid()) {
-            log_error("Invalid connect, do re-connect...");
+            log_err("Invalid connect, do re-connect...");
             conn_->reconnect();
         }
 
@@ -131,7 +131,7 @@ bool SqlConn::sqlconn_execute_query_value(const string& sql, T& val) {
             return false;
 
         if (result->rowsCount() != 1) {
-            log_error( "Error rows count: %d", result->rowsCount());
+            log_err( "Error rows count: %d", result->rowsCount());
             return false;
         }
 
@@ -147,7 +147,7 @@ bool SqlConn::sqlconn_execute_query_value(const string& sql, T& val) {
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
+        log_err("%s", output.str().c_str());
 
         return false;
     }
@@ -160,7 +160,7 @@ bool SqlConn::sqlconn_execute_query_values(const string& sql, Args& ... rest){
 
     try {
         if(!conn_->isValid()) {
-            log_error("Invalid connect, do re-connect...");
+            log_err("Invalid connect, do re-connect...");
             conn_->reconnect();
         }
 
@@ -170,7 +170,7 @@ bool SqlConn::sqlconn_execute_query_values(const string& sql, Args& ... rest){
             return false;
 
         if (result->rowsCount() != 1) {
-            log_error( "Error rows count: %d", result->rowsCount());
+            log_err( "Error rows count: %d", result->rowsCount());
             return false;
         }
 
@@ -186,7 +186,7 @@ bool SqlConn::sqlconn_execute_query_values(const string& sql, Args& ... rest){
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
+        log_err("%s", output.str().c_str());
 
         return false;
     }
@@ -200,7 +200,7 @@ bool SqlConn::sqlconn_execute_query_multi(const string& sql, std::vector<T>& vec
     try {
 
         if(!conn_->isValid()) {
-            log_error("Invalid connect, do re-connect...");
+            log_err("Invalid connect, do re-connect...");
             conn_->reconnect();
         }
 
@@ -227,7 +227,7 @@ bool SqlConn::sqlconn_execute_query_multi(const string& sql, std::vector<T>& vec
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
+        log_err("%s", output.str().c_str());
 
         return false;
     }

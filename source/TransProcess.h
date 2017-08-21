@@ -96,7 +96,7 @@ inline void get_db_table_index(std::string trans_id, int& tb1, int& tb2) {
         tb1 = trans_id[trans_id.size()-2] - '0';
         tb2 = trans_id[trans_id.size()-1] - '0';
 	} else {
-		log_error("Invalid strPartnerOrderId %s ", trans_id.c_str());
+		log_err("Invalid strPartnerOrderId %s ", trans_id.c_str());
 		tb1 = 0; tb2 = 0;
 	}
 }

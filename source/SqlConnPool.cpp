@@ -9,14 +9,14 @@
 
 #include "SqlConnPool.h"
 
-SqlConnPool::SqlConnPool(size_t capacity, string host, string user,
-						    string passwd, string db):
-    capacity_(capacity), host_(host), user_(user), passwd_(passwd), db_(db),
+SqlConnPool::SqlConnPool(size_t capacity, string host, int port, string user,
+						 string passwd, string db):
+    capacity_(capacity), host_(host), port_(port), user_(user), passwd_(passwd), db_(db),
     sql_conns_work_(), sql_conns_free_() {
 
     safe_assert(capacity_);
 
-    log_trace( "TOTAL SQL CONN: %d", capacity_ );
+    log_info( "TOTAL SQL CONN: %d", capacity_ );
     return;
 }
 
@@ -35,12 +35,12 @@ sql_conn_ptr SqlConnPool::do_request_conn() {
 
         sql_conn_ptr new_conn = boost::make_shared<SqlConn>(*this);
         if (!new_conn){
-            log_error("Creating new SqlConn failed!");
+            log_err("Creating new SqlConn failed!");
             return new_conn;
         }
 
-        if (!new_conn->init(reinterpret_cast<int64_t>(new_conn.get()), host_, user_, passwd_, db_)){
-            log_error("init new SqlConn failed!");
+        if (!new_conn->init(reinterpret_cast<int64_t>(new_conn.get()), host_, port_, user_, passwd_, db_)){
+            log_err("init new SqlConn failed!");
             new_conn.reset();
             return new_conn;
         }

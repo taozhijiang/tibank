@@ -13,7 +13,7 @@ SqlConn::SqlConn(SqlConnPool& pool):
 }
 
 bool SqlConn::init(int64_t conn_uuid,
-                     string host, string user, string passwd, string db) {
+                     string host, int port, string user, string passwd, string db) {
 
     try {
 
@@ -24,9 +24,17 @@ bool SqlConn::init(int64_t conn_uuid,
         output << "# " << driver_->getName() << ", version ";
 		output << driver_->getMajorVersion() << "." << driver_->getMinorVersion();
         output << "." << driver_->getPatchVersion() << endl;
-        log_trace("Driver info: %s", output.str().c_str());
+        log_info("Driver info: %s", output.str().c_str());
 
-		conn_.reset(driver_->connect(host, user, passwd));
+		sql::ConnectOptionsMap connection_properties;
+		connection_properties["hostName"] = host;
+		connection_properties["port"] = port;
+		connection_properties["userName"] = user;
+		connection_properties["password"] = passwd;
+		connection_properties["database"] = db;
+		connection_properties["OPT_RECONNECT"] = true;
+
+		conn_.reset(driver_->connect(connection_properties));
         stmt_.reset(conn_->createStatement());
     }
     catch (sql::SQLException &e) {
@@ -35,7 +43,7 @@ bool SqlConn::init(int64_t conn_uuid,
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
+        log_err("%s", output.str().c_str());
         return false;
     }
 
@@ -50,7 +58,7 @@ SqlConn::~SqlConn() {
     conn_.reset();
     stmt_.reset();
 
-    log_trace("Destruct Connection %ld OK!", conn_uuid_);
+    log_info("Destruct Connection %ld OK!", conn_uuid_);
 }
 
 bool SqlConn::sqlconn_execute(const string& sql) {
@@ -58,7 +66,7 @@ bool SqlConn::sqlconn_execute(const string& sql) {
     try {
 
         if(!conn_->isValid()) {
-            log_error("Invalid connect, do re-connect...");
+            log_err("Invalid connect, do re-connect...");
             conn_->reconnect();
         }
 
@@ -72,7 +80,7 @@ bool SqlConn::sqlconn_execute(const string& sql) {
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
+        log_err("%s", output.str().c_str());
     }
 
     return false;
@@ -85,7 +93,7 @@ sql::ResultSet* SqlConn::sqlconn_execute_query(const string& sql) {
 	try {
 
         if(!conn_->isValid()) {
-            log_error("Invalid connect, do re-connect...");
+            log_err("Invalid connect, do re-connect...");
             conn_->reconnect();
         }
 
@@ -99,7 +107,7 @@ sql::ResultSet* SqlConn::sqlconn_execute_query(const string& sql) {
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
+        log_err("%s", output.str().c_str());
 
     }
 
@@ -111,7 +119,7 @@ int SqlConn::sqlconn_execute_update(const string& sql) {
     try {
 
         if(!conn_->isValid()) {
-            log_error("Invalid connect, do re-connect...");
+            log_err("Invalid connect, do re-connect...");
             conn_->reconnect();
         }
 
@@ -124,7 +132,7 @@ int SqlConn::sqlconn_execute_update(const string& sql) {
         output << "# ERR: " << e.what() << endl;
         output << " (MySQL error code: " << e.getErrorCode() << endl;
         output << ", SQLState: " << e.getSQLState() << " )" << endl;
-        log_error("%s", output.str().c_str());
+        log_err("%s", output.str().c_str());
 
     }
 

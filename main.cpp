@@ -14,28 +14,28 @@ volatile bool TiBANK_SHUTDOWN = false;
 const char* TiBANK_DATABASE_PREFIX = "tibank";
 
 static void interrupted_callback(int signal){
-    log_error("Signal %d received ...", signal);
+    log_err("Signal %d received ...", signal);
 
     switch(signal) {
 
 	case SIGQUIT:
-            log_trace("Graceful stop tibank service ... ");
+            log_info("Graceful stop tibank service ... ");
             ServiceManager::instance().service_graceful();
-            log_trace("Graceful stop tibank done!"); // main join all
+            log_info("Graceful stop tibank done!"); // main join all
             TiBANK_SHUTDOWN = true;
             break;
 
         case SIGTERM:
-            log_trace("Immediately shutdown tibank service ... ");
+            log_info("Immediately shutdown tibank service ... ");
             ServiceManager::instance().service_terminate();
-            log_trace("Immediately shutdown tibank service done! ");
+            log_info("Immediately shutdown tibank service done! ");
             TiBANK_SHUTDOWN = true;
             ::sleep(1);
             ::exit(0);
             break;
 
         default:
-            log_error("Unhandled signal: %d", signal);
+            log_err("Unhandled signal: %d", signal);
             break;
     }
 }
@@ -59,7 +59,7 @@ static int create_process_pid() {
     FILE* fp = fopen(pid_file, "w+");
 
     if (!fp) {
-        log_error("Create pid file %s failed!", pid_file);
+        log_err("Create pid file %s failed!", pid_file);
         return -1;
     }
 
@@ -75,7 +75,14 @@ int main(int argc, char* argv[]) {
 
     std::cout << " THIS CURRENT RELEASE OF TiBANK " << std::endl;
     std::cout << "      VERSION: "  << tibank_VERSION_MAJOR << "." << tibank_VERSION_MINOR << std::endl;
-    if (!Log::instance().init()) {
+
+    int log_level = 0;
+    if (!get_config_value("log_level", log_level)) {
+		log_level = LOG_INFO;
+		log_info("Using default log_level LOG_INFO");
+	}
+
+    if (!Log::instance().init(log_level)) {
         std::cerr << "Init syslog failed!" << std::endl;
         return -1;
     }
@@ -89,13 +96,13 @@ int main(int argc, char* argv[]) {
     backtrace_init();
 
     if(!ServiceManager::instance().init()) {
-        log_error("ServiceManager init error!");
+        log_err("ServiceManager init error!");
         ::exit(1);
     }
 
     // SSL 环境设置
     if (!Ssl_thread_setup()) {
-        log_error("SSL env setup error!");
+        log_err("SSL env setup error!");
         ::exit(1);
     }
 
