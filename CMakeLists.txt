@@ -32,7 +32,7 @@ link_directories( /usr/lib64/mysql/ )
 add_executable( tibank main.cpp ${DIR_SRCS} )
 
 # ld iconv ?
-set (EXTRA_LIBS ${EXTRA_LIBS} ssl event)
+set (EXTRA_LIBS ${EXTRA_LIBS} ssl event config++)
 set (EXTRA_LIBS ${EXTRA_LIBS} pthread hiredis)
 set (EXTRA_LIBS ${EXTRA_LIBS} boost_system boost_thread-mt boost_date_time boost_regex)
 set (EXTRA_LIBS ${EXTRA_LIBS} mysqlcppconn)

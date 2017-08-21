@@ -113,6 +113,8 @@ void NetConn::do_write() override {
 
 void NetConn::read_head_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
+    http_server_.touch_net_conn(shared_from_this());
+
     if (!ec && bytes_transferred) {
 
         std::string head_str (boost::asio::buffers_begin(request_.data()),
@@ -293,6 +295,8 @@ write_return:
 
 
 void NetConn::write_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
+
+    http_server_.touch_net_conn(shared_from_this());
 
     if (!ec && bytes_transferred) {
 

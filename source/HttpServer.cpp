@@ -8,6 +8,9 @@
 #include "NetConn.h"
 #include "HttpHandler.h"
 
+#include "ServiceManager.h"
+#include "TimerService.h"
+
 #include "Log.h"
 
 static const size_t bucket_size_ = 0xFF;
@@ -23,6 +26,8 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c
 	docu_index_({"index.html", "index.htm", "index.xhtml"}),
     io_service_threads_(c_cz),
     net_conns_(bucket_size_, bucket_hash_index_call),
+	pending_to_remove_(),
+	alived_conns_(),
 	net_conn_remove_threads_(1) {
 
     acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
@@ -50,6 +55,17 @@ bool HttpServer::init() {
 
 	register_http_post_handler("/submit", http_handler::submit_handler);
 	register_http_post_handler("/query", http_handler::query_handler);
+
+
+    // add purge task
+    alived_conns_.init(boost::bind(&HttpServer::add_net_conn_to_remove, this, _1), 30, 5);
+
+    if (ServiceManager::instance().timer_service_ptr_->register_timer_task(
+                                    boost::bind(&AliveTimer<NetConn>::clean_up, &alived_conns_),
+                                    5*1000, true, false) == 0) {
+		log_error("Register alive purge task failed!");
+		return false;
+	}
 
     return true;
 }
@@ -111,7 +127,7 @@ void HttpServer::accept_handler(const boost::system::error_code& ec, socket_shar
 	log_debug(output.str().c_str());
 
     net_conn_ptr new_conn = boost::make_shared<NetConn>(sock_ptr, *this);
-	net_conns_.INSERT(new_conn);
+	add_net_conn(new_conn);
 
     new_conn->start();
 

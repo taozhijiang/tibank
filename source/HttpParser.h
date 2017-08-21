@@ -61,12 +61,12 @@ public:
 		std::string::size_type item_idx = 0;
 		item_idx = uri.find_first_of("?");
 		if (item_idx == std::string::npos) {
-			request_headers_.insert(std::make_pair(http_proto::header_options::request_path_info,uri));
+			request_headers_.insert(std::make_pair(http_proto::header_options::request_path_info, url_decode(uri)));
 			return true;
 		}
 
 		request_headers_.insert(std::make_pair(http_proto::header_options::request_path_info,
-														uri.substr(0, item_idx)));
+														url_decode(uri.substr(0, item_idx))));
 		request_headers_.insert(std::make_pair(http_proto::header_options::request_query_str,
 														uri.substr(item_idx + 1)));
 

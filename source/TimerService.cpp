@@ -20,7 +20,7 @@ bool TimerService::init() {
 	log_trace("Current Using Method: %s", event_base_get_method(ev_base_)); // epoll
 
 	// add purge task
-	if (register_timer_task(boost::bind(&TimerService::purge_dead_task, shared_from_this()), 5*1000, true, true) <= 0) {
+	if (register_timer_task(boost::bind(&TimerService::purge_dead_task, shared_from_this()), 5*1000, true, true) == 0) {
 		log_error("Register purge task failed!");
 		return false;
 	}
@@ -155,7 +155,7 @@ int64_t TimerService::register_timer_task(TimerEventCallable func, int64_t msec,
 
 	TimerTaskPtr task_ptr = boost::make_shared<TimerTask>(func, tv, persist, fast);
 	if (!task_ptr) {
-		return -1;
+		return 0;
 	}
 
 	evtimer_set(&task_ptr->ev_timer_, c_timer_cb, task_ptr.get());
@@ -209,6 +209,9 @@ int TimerService::add_task(TimerTaskPtr task_ptr) {
 // 删除dead_的定时任务，这个函数只可能在主线程中串行执行，
 // bf线程的执行函数都是拷贝构造的，所以不会有安全问题
 void TimerService::purge_dead_task(){
+
+    // log_debug("purge_dead_task check ...");
+
 	boost::lock_guard<boost::mutex> lock(tasks_lock_);
 	std::map<int64_t, TimerTaskPtr>::iterator it;
 	std::map<int64_t, TimerTaskPtr>::iterator tmp;

@@ -18,6 +18,7 @@
 #include "EQueue.h"
 #include "BucketSet.h"
 #include "HttpParser.h"
+#include "AliveTimer.h"
 
 typedef boost::function<int (const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status)> HttpPostHandler;
 typedef boost::function<int (const HttpParser& http_parser, std::string& response, string& status)> HttpGetHandler;
@@ -51,6 +52,8 @@ private:
     BucketSet<net_conn_ptr> net_conns_;
 	EQueue<net_conn_weak> pending_to_remove_;
 
+	AliveTimer<NetConn> alived_conns_;
+
 public:
 
     int register_http_post_handler(std::string uri, HttpPostHandler handler);
@@ -69,6 +72,11 @@ public:
 
 	int add_net_conn(net_conn_ptr conn_ptr) {
 		net_conns_.INSERT(conn_ptr);
+        alived_conns_.insert(conn_ptr);
+	}
+
+    void touch_net_conn(net_conn_ptr conn_ptr) {
+		alived_conns_.touch(conn_ptr);
 	}
 
 	int add_net_conn_to_remove(net_conn_ptr conn_ptr) {
@@ -78,6 +86,10 @@ public:
 	ThreadPoolHelper net_conn_remove_threads_;
 	void net_conn_remove_run(ThreadObjPtr ptr);
 	int net_conn_remove_stop_graceful();
+
+    AliveTimer<NetConn>& get_keep_alived() {
+        return alived_conns_;
+    }
 
 public:
     ThreadPoolHelper io_service_threads_;

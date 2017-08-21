@@ -13,6 +13,8 @@ class KeyValueVec {
 public:
 	typedef std::pair<K, V> Entry;
 	typedef std::vector<Entry> Container;
+	typedef typename Container::iterator iterator;
+	typedef typename Container::const_iterator const_iterator;
 
 public:
 	KeyValueVec():
@@ -23,9 +25,19 @@ public:
 	}
 
 public:
-    void PUSH_BACK(K k, V v) {
+
+	// so called iterator delegation...
+	iterator BEGIN() {
+		return items_.begin();
+	}
+
+	iterator END() {
+		return items_.end();
+	}
+
+    void PUSH_BACK(const K& k, const V& v) {
 		boost::unique_lock<boost::mutex> lock(lock_);
-		items_.push_back(std::make_pair<K,V>(k, v)); // make_pair can not use - const ref
+		items_.push_back({k, v}); // make_pair can not use - const ref
 	}
 
 	void PUSH_BACK(const Entry& entry) {

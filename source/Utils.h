@@ -38,5 +38,11 @@ static inline void free_sql_conn(sql_conn_ptr conn) {
     ServiceManager::instance().sql_pool_ptr_->free_conn(conn);
 }
 
+template <typename T>
+bool get_config_value(const std::string& key, T& t) {
+    return ServiceManager::instance().cfg.lookupValue(key, t);
+}
+
+
 
 #endif // _TiBANK_UTILS_H_

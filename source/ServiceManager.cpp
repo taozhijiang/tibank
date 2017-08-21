@@ -3,12 +3,13 @@
 #include <string>
 #include <map>
 
-#include "ServiceManager.h"
 #include "SignHelper.h"
-
+#include "Utils.h"
 #include "TimerService.h"
 #include "HttpServer.h"
 #include "TransProcessTask.h"
+
+#include "ServiceManager.h"
 
 // 在主线程中最先初始化，所以不考虑竞争条件问题
 ServiceManager& ServiceManager::instance() {
@@ -25,6 +26,16 @@ bool ServiceManager::init() {
 
     if (initialized_) {
         log_error("ServiceManager already initlialized...");
+        return false;
+    }
+
+    try {
+        cfg.readFile("tibank.conf");
+    } catch(libconfig::FileIOException &fioex) {
+        log_error("I/O error while reading file.");
+        return false;
+    } catch(libconfig::ParseException &pex) {
+        log_error("Parse error at %d - %s", pex.getLine(), pex.getError());
         return false;
     }
 
@@ -45,7 +56,17 @@ bool ServiceManager::init() {
 		return false;
 	}
 
-	http_server_ptr_.reset(new HttpServer("0.0.0.0", 8899, 8, "/var/www/html/"));
+    std::string listen_addr;
+    int listen_port = 0;
+    std::string doc_root;
+    if (!get_config_value("listen_addr", listen_addr) || !get_config_value("listen_port", listen_port) ||
+        !get_config_value("doc_root", doc_root)){
+        log_error("Error, get value error");
+        return false;
+    }
+
+    log_trace("listen at: %s:%d, doc:%s", listen_addr.c_str(), listen_port, doc_root.c_str());
+    http_server_ptr_.reset(new HttpServer(listen_addr, listen_port, 8, doc_root));
 	if (!http_server_ptr_ || !http_server_ptr_->init()) {
 		log_error("Init HttpServer failed!");
 		return false;

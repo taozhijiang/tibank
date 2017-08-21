@@ -14,7 +14,7 @@
 // _built_in_
 #else
 #define override
-#define nullptr NULL
+#define nullptr (void*)0
 #endif
 
 #ifdef NP_DEBUG
@@ -52,7 +52,6 @@ typedef boost::weak_ptr<ip::tcp::socket>   	socket_weak_ptr;
 
 typedef boost::asio::posix::stream_descriptor asio_fd;
 typedef boost::shared_ptr<boost::asio::posix::stream_descriptor> asio_fd_shared_ptr;
-
 
 
 #endif // _TiBANK_GENERAL_HPP_
