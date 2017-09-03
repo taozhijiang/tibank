@@ -38,9 +38,15 @@ static inline void free_sql_conn(sql_conn_ptr conn) {
     ServiceManager::instance().sql_pool_ptr_->free_conn(conn);
 }
 
+
+#include <libconfig.h++>
+
+bool sys_config_init();
+libconfig::Config& get_config_object();
+
 template <typename T>
 bool get_config_value(const std::string& key, T& t) {
-    return ServiceManager::instance().cfg.lookupValue(key, t);
+    return get_config_object().lookupValue(key, t);
 }
 
 

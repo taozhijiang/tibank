@@ -378,6 +378,7 @@ bool NetConn::handle_socket_ec(const boost::system::error_code& ec) {
 	if (close_socket) {
 		set_conn_stat(ConnStat::kConnError);
 		http_server_.add_net_conn_to_remove(shared_from_this());
+        http_server_.get_keep_alived().touch(shared_from_this(), ::time(NULL));
 	}
 
 	return close_socket;

@@ -62,3 +62,25 @@ int set_nonblocking(int fd) {
     return 0;
 }
 
+
+libconfig::Config& get_config_object() {
+    static libconfig::Config cfg;
+    return cfg;
+}
+
+bool sys_config_init() {
+
+    libconfig::Config& cfg = get_config_object();
+
+    try {
+        cfg.readFile("tibank.conf");
+    } catch(libconfig::FileIOException &fioex) {
+        log_err("I/O error while reading file.");
+        return false;
+    } catch(libconfig::ParseException &pex) {
+        log_err("Parse error at %d - %s", pex.getLine(), pex.getError());
+        return false;
+    }
+
+    return true;
+}

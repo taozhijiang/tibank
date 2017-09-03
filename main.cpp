@@ -76,6 +76,11 @@ int main(int argc, char* argv[]) {
     std::cout << " THIS CURRENT RELEASE OF TiBANK " << std::endl;
     std::cout << "      VERSION: "  << tibank_VERSION_MAJOR << "." << tibank_VERSION_MINOR << std::endl;
 
+    if (!sys_config_init()) {
+        std::cout << "Handle system configure failed!" << std::endl;
+        return -1;
+    }
+
     int log_level = 0;
     if (!get_config_value("log_level", log_level)) {
 		log_level = LOG_INFO;

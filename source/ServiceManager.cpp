@@ -29,17 +29,7 @@ bool ServiceManager::init() {
         return false;
     }
 
-    try {
-        cfg.readFile("tibank.conf");
-    } catch(libconfig::FileIOException &fioex) {
-        log_err("I/O error while reading file.");
-        return false;
-    } catch(libconfig::ParseException &pex) {
-        log_err("Parse error at %d - %s", pex.getLine(), pex.getError());
-        return false;
-    }
-
-	if (!SignHelper::instance().init()) {
+    if (!SignHelper::instance().init()) {
 		log_err("Init SignHelper failed!");
         return false;
 	}
@@ -108,7 +98,7 @@ bool ServiceManager::init() {
 	http_server_ptr_->net_conn_remove_threads_.start_threads();
 
 	// business attached
-	// trans_process_ptr_->trans_process_task_.start_threads();
+	trans_process_ptr_->trans_process_task_.start_threads();
 
 	log_info("ServiceManager all initialized...");
     initialized_ = true;

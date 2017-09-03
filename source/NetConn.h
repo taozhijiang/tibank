@@ -68,6 +68,10 @@ private:
     HttpServer& http_server_;
     HttpParser http_parser_;
 
+    // Of course, the handlers may still execute concurrently with other handlers that
+    // were not dispatched through an boost::asio::strand, or were dispatched through
+    // a different boost::asio::strand object.
+
     // Where there is a single chain of asynchronous operations associated with a
     // connection (e.g. in a half duplex protocol implementation like HTTP) there
     // is no possibility of concurrent execution of the handlers. This is an implicit strand.

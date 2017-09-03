@@ -77,12 +77,12 @@ int do_process_task(EQueueDataPtr qd) {
             break;
         }
 
-        if (F_amount % 7 == 0){
-            F_status = TransStatus::kTransFail;
-            F_errcode = TransResponseCode::kTransResponseUnknownErr;
-        } else {
+        if ((F_amount % 5) && (F_amount < 100) ){
             F_status = TransStatus::kTransSuccess;
             F_errcode = TransResponseCode::kTransResponseOK;
+        } else {
+            F_status = TransStatus::kTransFail;
+            F_errcode = TransResponseCode::kTransResponseUnknownErr;
         }
 
     } while (0);

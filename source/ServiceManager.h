@@ -6,7 +6,6 @@
 #include <vector>
 
 #include <boost/shared_ptr.hpp>
-#include <libconfig.h++>
 
 #include "SqlConnPool.h"
 
@@ -25,10 +24,6 @@ public:
 	bool service_graceful();
 	void service_terminate();
 
-    const libconfig::Config& get_cfg() {
-        return cfg;
-    }
-
 private:
 	ServiceManager();
 
@@ -39,8 +34,6 @@ public:
 	boost::shared_ptr<HttpServer> http_server_ptr_;
     boost::shared_ptr<TransProcessTask> trans_process_ptr_;
     boost::shared_ptr<SqlConnPool> sql_pool_ptr_;
-
-    libconfig::Config cfg;
 };
 
 
