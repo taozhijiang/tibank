@@ -29,7 +29,12 @@ add_subdirectory( source/json )
 
 link_directories( /usr/lib64/mysql/ )
 
-add_executable( tibank main.cpp ${DIR_SRCS} )
+exec_program( "export BUILD_VAR=`git log -1 --pretty=%H` && echo 'const char *build_commit = \"VCS: Commit:' $BUILD_VAR '\";' > build_version.cpp ")
+exec_program( "export BUILD_VAR=`git log -1 --pretty=%cd` && echo 'const char *build_date = \"VCS: Date:' $BUILD_VAR '\";' >> build_version.cpp ")
+exec_program( "export BUILD_VAR=`git log -1 --pretty=\"%an %ae\"` && echo 'const char *build_author = \"VCS: Author:' $BUILD_VAR '\";' >> build_version.cpp ")
+exec_program( "export BUILD_VAR=`git symbolic-ref HEAD` && echo 'const char *build_branch = \"VCS: Branch:' $BUILD_VAR '\";' >> build_version.cpp ")
+
+add_executable( tibank main.cpp build_version.cpp ${DIR_SRCS} )
 
 # ld iconv ?
 set (EXTRA_LIBS ${EXTRA_LIBS} ssl event config++)

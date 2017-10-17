@@ -63,6 +63,7 @@ int submit_handler(const HttpParser& http_parser, const std::string& post_data, 
         goto error_ret;
     }
 
+
     submit_req.merch_id = mapParam.at("merch_id");
     submit_req.merch_name = mapParam.at("merch_name");
     submit_req.trans_id = mapParam.at("trans_id");
@@ -95,8 +96,9 @@ int submit_handler(const HttpParser& http_parser, const std::string& post_data, 
     return 0;
 
 error_ret2:
+    submit_ret.trans_response = TransResponseCode::kTransResponseOK;
     submit_ret.trans_status = TransStatus::kTransSubmitFail;
-    submit_ret.trans_status_str = get_trans_status_str(TransStatus::kTransSubmitFail);
+    submit_ret.trans_err_code = TransErrInfo::kTransNoErr;
     generate_trans_submit_ret(submit_ret, response);
     status = http_proto::status::ok;
     return 0;
@@ -120,6 +122,7 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
 
     if (!reader.parse(post_data, root) || root.isNull()) {
         log_err("parse error for: %s", post_data.c_str());
+        query_ret.trans_err_code = TransErrInfo::kTransParamErr;
         goto error_ret;
     }
 
@@ -130,6 +133,7 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
         }
     } catch (std::exception& e){
         log_err("get string member error for: %s", post_data.c_str());
+        query_ret.trans_err_code = TransErrInfo::kTransParamErr;
         goto error_ret;
     }
 
@@ -145,8 +149,11 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
         mapParam.find("account_type") == mapParam.end()) {
 #endif
         log_err("param check error for: %s", post_data.c_str());
+
+        query_ret.trans_err_code = TransErrInfo::kTransParamErr;
         goto error_ret;
     }
+
 
     query_req.merch_id = mapParam.at("merch_id");
     query_req.merch_name = mapParam.at("merch_name");
@@ -176,8 +183,8 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
     return 0;
 
 error_ret2:
+    query_ret.trans_response = TransResponseCode::kTransResponseOK;
     query_ret.trans_status = TransStatus::kTransSubmitFail;
-    query_ret.trans_status_str = get_trans_status_str(TransStatus::kTransSubmitFail);
     generate_trans_query_ret(query_ret, response);
     status = http_proto::status::ok;
     return 0;
@@ -187,6 +194,266 @@ error_ret:
     status = http_proto::status::internal_server_error;
 	return -1;
 }
+
+int batch_submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
+
+    Json::Value root;
+	Json::Reader reader;
+    Json::Value::Members mem;
+
+    std::map<std::string, std::string> mapParam;
+
+    trans_batch_submit_request batch_submit_req;
+    trans_batch_submit_response batch_submit_ret;
+    trans_submit_response dummy_submit_ret; // dummy, not concerning
+
+    std::vector<trans_submit_request> orders;
+    Json::Value orderReqs;
+
+    if (!reader.parse(post_data, root) || root.isNull()) {
+        log_err("parse error for: %s", post_data.c_str());
+
+        batch_submit_ret.trans_err_code = TransErrInfo::kTransParamErr;
+        goto error_ret;
+    }
+
+    mem = root.getMemberNames();
+    try {
+        for (Json::Value::Members::const_iterator iter = mem.begin(); iter != mem.end(); iter++) {
+            mapParam[*iter] = root[*iter].asString();
+        }
+    } catch (std::exception& e){
+        log_err("get string member error for: %s", post_data.c_str());
+
+        batch_submit_ret.trans_err_code = TransErrInfo::kTransParamErr;
+        goto error_ret;
+    }
+
+    if( mapParam.find("merch_id") == mapParam.end() ||
+        mapParam.find("merch_name") == mapParam.end() ||
+        mapParam.find("total_count") == mapParam.end() ||
+        mapParam.find("total_amount") == mapParam.end() ||
+#if 0
+        mapParam.find("orders") == mapParam.end() ||
+        mapParam.find("sign") == mapParam.end() ) {
+#else
+        mapParam.find("orders") == mapParam.end() ) {
+#endif
+        log_err("param check error for: %s", post_data.c_str());
+
+        batch_submit_ret.trans_err_code = TransErrInfo::kTransParamErr;
+        goto error_ret;
+    }
+
+#if 0
+    if (SignHelper::instance().check_sign(mapParam) != 0) {
+        log_err("Sign check error for: %s", post_data.c_str());
+        submit_ret.trans_err_code = TransErrCode::kTransErrParam;
+        submit_ret.trans_err_str = get_trans_err_str(TransErrCode::kTransErrParam);
+        goto error_ret2;
+    }
+#endif
+
+    batch_submit_req.merch_id = mapParam.at("merch_id");
+    batch_submit_req.merch_name = mapParam.at("merch_name");
+    batch_submit_req.total_count = ::atol(mapParam.at("total_count").c_str());
+    batch_submit_req.total_amount = ::atol(mapParam.at("total_amount").c_str());
+
+    if (!reader.parse(mapParam["orders"], orderReqs) || !orderReqs.isArray()) {
+    	log_err("parse error for: %s", mapParam["orders"].c_str());
+
+        batch_submit_ret.trans_err_code = TransErrInfo::kTransParamErr;
+    	goto error_ret;
+    }
+
+    for (size_t i = 0; i < orderReqs.size(); i++) {
+    	if (!orderReqs[i]["trans_id"].isString() || !orderReqs[i]["account_no"].isString() ||
+    		!orderReqs[i]["account_name"].isString() || !orderReqs[i]["amount"].isString() ||
+    		!orderReqs[i]["account_type"].isString() || !orderReqs[i]["branch_name"].isString() ||
+    		!orderReqs[i]["branch_no"].isString() || !orderReqs[i]["remarks"].isString()){
+
+            log_err("order error!");
+
+            batch_submit_ret.trans_err_code = TransErrInfo::kTransParamErr;
+    		goto error_ret;
+    	}
+
+        trans_submit_request req;
+        req.merch_id = batch_submit_req.merch_id;
+        req.merch_name = batch_submit_req.merch_name;
+
+        req.trans_id = orderReqs[i]["trans_id"].asString();
+        req.account_no = orderReqs[i]["account_no"].asString();
+        req.account_name = orderReqs[i]["account_name"].asString();
+        req.amount = ::atol(orderReqs[i]["amount"].asString().c_str());
+        req.account_type = ::atoi(orderReqs[i]["account_type"].asString().c_str());
+        req.branch_name = orderReqs[i]["branch_name"].asString();
+        req.branch_no = orderReqs[i]["branch_no"].asString();
+        req.remarks = orderReqs[i]["remarks"].asString();
+
+        orders.push_back(req);
+    }
+
+    batch_submit_req.orders = orders;
+
+    for (size_t i = 0; i < batch_submit_req.orders.size(); i++){
+        process_trans_submit(batch_submit_req.orders[i], dummy_submit_ret);
+    }
+
+
+    batch_submit_ret.merch_id = batch_submit_req.merch_id;
+    batch_submit_ret.merch_name = batch_submit_req.merch_name;
+    batch_submit_ret.message_type = "批量提交回复";
+    batch_submit_ret.total_count = batch_submit_req.total_count;
+    batch_submit_ret.total_amount = batch_submit_req.total_amount;
+
+    batch_submit_ret.trans_response = TransResponseCode::kTransResponseOK;
+    batch_submit_ret.trans_status = TransStatus::kTransInProcess;
+    batch_submit_ret.trans_err_code = TransErrInfo::kTransNoErr;
+
+
+    generate_trans_batch_submit_ret(batch_submit_ret, response);
+    status = http_proto::status::ok;
+    return 0;
+
+error_ret2:
+    batch_submit_ret.trans_response = TransResponseCode::kTransResponseOK;
+    batch_submit_ret.trans_status = TransStatus::kTransSubmitFail;
+    generate_trans_batch_submit_ret(batch_submit_ret, response);
+    status = http_proto::status::ok;
+    return 0;
+
+error_ret:
+    response = http_proto::content_error;
+    status = http_proto::status::internal_server_error;
+	return -1;
+}
+
+int batch_query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
+
+    Json::Value root;
+	Json::Reader reader;
+    Json::Value::Members mem;
+
+    std::map<std::string, std::string> mapParam;
+
+    trans_batch_query_request batch_query_req;
+    trans_batch_query_response batch_query_ret;
+
+    std::vector<trans_query_request> orders;
+    Json::Value orderReqs;
+
+    std::vector<trans_query_response> orders_ret;
+
+    if (!reader.parse(post_data, root) || root.isNull()) {
+        log_err("parse error for: %s", post_data.c_str());
+
+        goto error_ret;
+    }
+
+    mem = root.getMemberNames();
+    try {
+        for (Json::Value::Members::const_iterator iter = mem.begin(); iter != mem.end(); iter++) {
+            mapParam[*iter] = root[*iter].asString();
+        }
+    } catch (std::exception& e){
+        log_err("get string member error for: %s", post_data.c_str());
+        goto error_ret;
+    }
+
+    if( mapParam.find("merch_id") == mapParam.end() ||
+        mapParam.find("merch_name") == mapParam.end() ||
+        mapParam.find("total_count") == mapParam.end() ||
+        mapParam.find("total_amount") == mapParam.end() ||
+#if 0
+        mapParam.find("orders") == mapParam.end() ||
+        mapParam.find("sign") == mapParam.end() ) {
+#else
+        mapParam.find("orders") == mapParam.end() ) {
+#endif
+        log_err("param check error for: %s", post_data.c_str());
+        goto error_ret;
+    }
+
+#if 0
+    if (SignHelper::instance().check_sign(mapParam) != 0) {
+        log_err("Sign check error for: %s", post_data.c_str());
+        query_req.trans_err_code = TransErrCode::kTransErrParam;
+        query_req.trans_err_str = get_trans_err_str(TransErrCode::kTransErrParam);
+        goto error_ret2;
+    }
+#endif
+
+    batch_query_req.merch_id = mapParam.at("merch_id");
+    batch_query_req.merch_name = mapParam.at("merch_name");
+    batch_query_req.total_count = ::atol(mapParam.at("total_count").c_str());
+    batch_query_req.total_amount = ::atol(mapParam.at("total_amount").c_str());
+
+    if (!reader.parse(mapParam["orders"], orderReqs) || !orderReqs.isArray()) {
+    	log_err("parse error for: %s", mapParam["orders"].c_str());
+    	goto error_ret;
+    }
+
+    for (size_t i = 0; i < orderReqs.size(); i++) {
+    	if (!orderReqs[i]["trans_id"].isString() || !orderReqs[i]["account_no"].isString()
+            || !orderReqs[i]["account_name"].isString() || !orderReqs[i]["account_type"].isString() ){
+    		log_err("order error!");
+    		goto error_ret;
+    	}
+
+        trans_query_request req;
+        req.merch_id = batch_query_req.merch_id;
+        req.merch_name = batch_query_req.merch_name;
+
+        req.trans_id = orderReqs[i]["trans_id"].asString();
+        req.account_no = orderReqs[i]["account_no"].asString();
+        req.account_name = orderReqs[i]["account_name"].asString();
+        req.account_type = ::atoi(orderReqs[i]["account_type"].asString().c_str());
+
+        orders.push_back(req);
+    }
+
+    batch_query_req.orders = orders;
+
+    for (size_t i = 0; i < batch_query_req.orders.size(); i++){
+        trans_query_response query_ret;
+
+        query_ret.merch_id = batch_query_req.orders[i].merch_id;
+        query_ret.merch_name = batch_query_req.orders[i].merch_name;
+        query_ret.trans_id = batch_query_req.orders[i].trans_id;
+        query_ret.account_no = batch_query_req.orders[i].account_no;
+        query_ret.account_name = batch_query_req.orders[i].account_name;
+
+        process_trans_query(batch_query_req.orders[i], query_ret);
+        orders_ret.push_back(query_ret);
+    }
+
+    batch_query_ret.merch_id = batch_query_req.merch_id;
+    batch_query_ret.merch_name = batch_query_req.merch_name;
+    batch_query_ret.message_type = "批量查询回复";
+    batch_query_ret.total_count = batch_query_req.total_count;
+    batch_query_ret.total_amount = batch_query_req.total_amount;
+    batch_query_ret.trans_response = TransResponseCode::kTransResponseOK;
+    batch_query_ret.orders = orders_ret;
+
+
+    generate_trans_batch_query_ret(batch_query_ret, response);
+    status = http_proto::status::ok;
+    return 0;
+
+error_ret2:
+    batch_query_ret.trans_response = TransResponseCode::kTransResponseFail;
+    generate_trans_batch_query_ret(batch_query_ret, response);
+    status = http_proto::status::ok;
+    return 0;
+
+error_ret:
+    response = http_proto::content_error;
+    status = http_proto::status::internal_server_error;
+	return -1;
+
+}
+
 
 static const std::string& get_document_root() {
 	return ServiceManager::instance().http_server_ptr_->get_document_root();

@@ -57,6 +57,9 @@ bool HttpServer::init() {
 	register_http_post_handler("/submit", http_handler::submit_handler);
 	register_http_post_handler("/query", http_handler::query_handler);
 
+    register_http_post_handler("/batch_submit", http_handler::batch_submit_handler);
+	register_http_post_handler("/batch_query", http_handler::batch_query_handler);
+
 
     // add purge task
 	int conn_time_out = 0;

@@ -9,6 +9,12 @@
 
 extern const char* TiBANK_DATABASE_PREFIX;
 
+
+extern void process_logic_1( int& status, int& err_code,
+                                int amount, const std::string& remarks, int l_status);
+extern void process_logic_2( int& status, int& err_code,
+                                int amount, const std::string& remarks, int l_status);
+
 bool TransProcessTask::init() {
 
 	if (! trans_process_task_.init_threads(boost::bind(&TransProcessTask::trans_process_task_run, shared_from_this(),_1))) {
@@ -38,7 +44,7 @@ int do_process_task(EQueueDataPtr qd) {
 
     do {
         shared_result_ptr result(conn->sqlconn_execute_query(
-                                    va_format(" SELECT F_account_no, F_account_name, F_amount, F_branch_no, F_branch_name, F_status FROM %s.t_trans_order_%02d "
+                                    va_format(" SELECT F_account_no, F_account_name, F_amount, F_branch_no, F_branch_name, F_status, F_remarks FROM %s.t_trans_order_%02d "
                                                " WHERE F_merch_id='%s' AND F_trans_id='%s' AND F_account_type=%d LIMIT 1 ",
                                                 TiBANK_DATABASE_PREFIX, get_db_table_index(qd->trans_id_),
                                                 qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_)));
@@ -54,36 +60,25 @@ int do_process_task(EQueueDataPtr qd) {
         std::string F_branch_no;
         std::string F_branch_name;
         int F_status_l = 0;
+        std::string F_remarks;
 
         result->next();
-        if (!cast_raw_value(result, 1, F_account_no, F_account_name, F_amount, F_branch_no, F_branch_name, F_status_l)){
+        if (!cast_raw_value(result, 1, F_account_no, F_account_name, F_amount, F_branch_no, F_branch_name, F_status_l, F_remarks)){
             log_err("Failed to cast trans order info ..." );
             nResult = -1;
             break;
         }
 
-        log_info("Trans Info: %s %s %ld %s %s -> %d", F_account_no.c_str(), F_account_name.c_str(), F_amount,
-                                    F_branch_no.c_str(), F_branch_name.c_str(), F_status_l);
+        log_info("Trans Info: %s %s %ld %s %s %s -> %d", F_account_no.c_str(), F_account_name.c_str(), F_amount,
+                                    F_branch_no.c_str(), F_branch_name.c_str(), F_remarks.c_str(), F_status_l );
         if (F_status_l != TransStatus::kTransInProcess) {
             log_err("Invalid trans status: %d", F_status_l);
             nResult = -1;
             break;
         }
 
-        if (F_amount >= 100*10000*100) { // 单笔不超过100W
-            log_err("F_amount error: %ld", F_amount);
-            F_status = TransStatus::kTransFail;
-            F_errcode = TransResponseCode::kTransResponseAmountErr;
-            break;
-        }
-
-        if ((F_amount % 5) && (F_amount < 100) ){
-            F_status = TransStatus::kTransSuccess;
-            F_errcode = TransResponseCode::kTransResponseOK;
-        } else {
-            F_status = TransStatus::kTransFail;
-            F_errcode = TransResponseCode::kTransResponseUnknownErr;
-        }
+        // 自定义成功，失败规则
+        process_logic_1(F_status, F_errcode, F_amount, F_remarks, F_status_l);
 
     } while (0);
 
@@ -360,7 +355,7 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
 			qd->process_count_ = F_process_count;
 
 			// 查看回盘操作的次数限制
-			if (qd->process_count_ >= 5) {
+			if (qd->process_count_ >= 10) {
 				log_err("Max process count exceeded: %d - %d, ('%s', '%s', %d)", F_process_count, 5, F_merch_id.c_str(), F_trans_id.c_str(), F_account_type);
 				finish_trans_process_task(conn, qd, TaskStatusType::kTaskStatusFailed);
 				continue;

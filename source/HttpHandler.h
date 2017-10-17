@@ -11,8 +11,13 @@ typedef boost::function<int (const HttpParser& http_parser, std::string& respons
 
 namespace http_handler {
 
+// 批量接口
 int submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status);
 int query_handler (const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status);
+
+// 单笔接口
+int batch_submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status);
+int batch_query_handler (const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status);
 
 int default_http_get_handler(const HttpParser& http_parser, std::string& response, string& status);
 

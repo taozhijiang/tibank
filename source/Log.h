@@ -4,17 +4,18 @@
 // man 3 syslog
 #include <syslog.h>
 #include <stdarg.h>
+#include <cstddef>
 
-// LOG_EMERG      system is unusable
-// LOG_ALERT      action must be taken immediately
-// LOG_CRIT       critical conditions
-// LOG_ERR        error conditions
-// LOG_WARNING    warning conditions
-// LOG_NOTICE     normal, but significant, condition
-// LOG_INFO       informational message
-// LOG_DEBUG      debug-level message
+// LOG_EMERG   0   system is unusable
+// LOG_ALERT   1   action must be taken immediately
+// LOG_CRIT    2   critical conditions
+// LOG_ERR     3   error conditions
+// LOG_WARNING 4   warning conditions
+// LOG_NOTICE  5   normal, but significant, condition
+// LOG_INFO    6   informational message
+// LOG_DEBUG   7   debug-level message
 
-static const size_t MAX_LOG_BUF_SIZE = 16*1024;
+static const std::size_t MAX_LOG_BUF_SIZE = 16*1024;
 
 class Log {
 public:
