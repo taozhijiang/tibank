@@ -47,7 +47,7 @@ public:
 
 	bool FIND(const K& k, V& v) const {
 		boost::unique_lock<boost::mutex> lock(lock_);
-		for (size_t idx = items_.size(); idx < items_.size(); ++idx) {
+		for (size_t idx = 0; idx < items_.size(); ++idx) {
 			if (items_[idx].first == k) {
 				v = items_[idx].second;
 				return true;
@@ -58,7 +58,7 @@ public:
 
 	bool FIND(const K& k, Entry& entry) const {
 		boost::unique_lock<boost::mutex> lock(lock_);
-		for (size_t idx = items_.size(); idx < items_.size(); ++idx) {
+		for (size_t idx = 0; idx < items_.size(); ++idx) {
 			if (items_[idx].first == k) {
 				entry = items_[idx];
 				return true;
