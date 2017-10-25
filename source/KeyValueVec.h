@@ -77,7 +77,7 @@ public:
 		return items_.empty();
     }
 
-    void CLEAR() const {
+    void CLEAR() {
         boost::unique_lock<boost::mutex> lock(lock_);
 		items_.clear();
     }

@@ -52,6 +52,9 @@ public:
 
 	bool parse_request_uri() {
 
+		// clear it first!
+		request_uri_params_.CLEAR();
+
 		std::string uri = find_request_header(http_proto::header_options::request_uri);
 		if (uri.empty()) {
 			log_err("Error found, head uri empty!");
