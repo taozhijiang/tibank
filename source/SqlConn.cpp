@@ -1,19 +1,17 @@
 #include "SqlConn.h"
-#include "SqlConnPool.h"
 
 #include <sstream>
 
 #include <boost/scoped_ptr.hpp>
 
-SqlConn::SqlConn(SqlConnPool& pool):
+SqlConn::SqlConn(ConnPool<SqlConn, SqlConnPoolHelper>& pool):
     driver_(),
     conn_uuid_(0),
     stmt_(),
     pool_(pool) {
 }
 
-bool SqlConn::init(int64_t conn_uuid,
-                     string host, int port, string user, string passwd, string db) {
+bool SqlConn::init(int64_t conn_uuid,  const SqlConnPoolHelper& helper) {
 
     try {
 
@@ -27,11 +25,11 @@ bool SqlConn::init(int64_t conn_uuid,
         log_info("Driver info: %s", output.str().c_str());
 
 		sql::ConnectOptionsMap connection_properties;
-		connection_properties["hostName"] = host;
-		connection_properties["port"] = port;
-		connection_properties["userName"] = user;
-		connection_properties["password"] = passwd;
-		connection_properties["database"] = db;
+		connection_properties["hostName"] = helper.host_;
+		connection_properties["port"] = helper.port_;
+		connection_properties["userName"] = helper.user_;
+		connection_properties["password"] = helper.passwd_;
+		connection_properties["database"] = helper.db_;
 		connection_properties["OPT_RECONNECT"] = true;
 
 		conn_.reset(driver_->connect(connection_properties));
@@ -47,7 +45,7 @@ bool SqlConn::init(int64_t conn_uuid,
         return false;
     }
 
-    stmt_->execute("USE " + db + ";");
+    stmt_->execute("USE " + helper.db_ + ";");
     log_info("Create New Connection OK!");
     return true;
 }

@@ -19,7 +19,9 @@ std::string convert_to_string(const T& arg) {
     }
 }
 
-#include "SqlConnPool.h"
+#include "ConnPool.h"
+#include "SqlConn.h"
+#include "RedisConn.h"
 #include "ServiceManager.h"
 
 static inline bool request_scoped_sql_conn(sql_conn_ptr& conn) {
@@ -38,6 +40,9 @@ static inline void free_sql_conn(sql_conn_ptr conn) {
     ServiceManager::instance().sql_pool_ptr_->free_conn(conn);
 }
 
+static inline bool request_scoped_redis_conn(redis_conn_ptr& conn) {
+    return ServiceManager::instance().redis_pool_ptr_->request_scoped_conn(conn);
+}
 
 #include <libconfig.h++>
 

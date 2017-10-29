@@ -15,13 +15,28 @@
 #include "Log.h"
 #include "TiGeneral.h"
 
-
-class SqlConnPool;
+#include "ConnPool.h"
 
 class SqlConn;
 typedef boost::shared_ptr<SqlConn> sql_conn_ptr;
 typedef boost::scoped_ptr<sql::ResultSet> scoped_result_ptr;
 typedef boost::shared_ptr<sql::ResultSet> shared_result_ptr;
+
+struct SqlConnPoolHelper {
+public:
+    SqlConnPoolHelper(string host, int port,
+					  string user, string passwd, string db):
+			host_(host), port_(port),
+			user_(user), passwd_(passwd), db_(db) {
+	}
+
+public:
+    const string host_;
+    const int port_;
+    const string user_;
+    const string passwd_;
+    const string db_;
+};
 
 static const int kMaxBuffSize = 8190;
 static std::string va_format(const char * fmt, ...) {
@@ -79,9 +94,10 @@ bool cast_raw_value(shared_result_ptr result, const uint32_t idx, T& val, Args& 
 
 class SqlConn: public boost::noncopyable {
 public:
-    explicit SqlConn(SqlConnPool& pool);
+    explicit SqlConn(ConnPool<SqlConn, SqlConnPoolHelper>& pool);
     ~SqlConn();
-    bool init(int64_t conn_uuid, string host, int port, string user, string passwd, string db);
+
+	bool init(int64_t conn_uuid, const SqlConnPoolHelper& helper);
 
     void set_uuid(int64_t uuid) { conn_uuid_ = uuid; }
     int64_t get_uuid() { return conn_uuid_; }
@@ -112,7 +128,7 @@ private:
     boost::scoped_ptr<sql::Statement> stmt_;
 
     // may be used in future
-    SqlConnPool&    pool_;
+    ConnPool<SqlConn, SqlConnPoolHelper>& pool_;
 };
 
 

@@ -137,6 +137,9 @@ public:
 		return request_uri_params_;
 	}
 
+	bool get_request_uri_param(const std::string& key, std::string& value) const {
+        return request_uri_params_.FIND(key, value);
+	}
 
 private:
 

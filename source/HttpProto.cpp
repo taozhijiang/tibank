@@ -17,7 +17,7 @@ struct header {
  */
 string http_response_generate(const string& content, const string& stat_str) {
 
-    std::vector<header> headers(6);
+    std::vector<header> headers(7);
 
     // reply fixed header
     headers[0].name = "Server";
@@ -29,9 +29,12 @@ string http_response_generate(const string& content, const string& stat_str) {
     headers[3].name = "Content-Type";
     headers[3].value = "text/html";
     headers[4].name = "Connection";
-    headers[4].value = "keep-alive";
-    headers[5].name = "Access-Control-Allow-Origin";
-    headers[5].value = "*";
+    headers[4].value = "keep-alive";  // 长连接
+    // headers[4].value = "close";  // 短连接
+	headers[5].name = "Cache-Control";
+	headers[5].value = "no-cache";
+    headers[6].name = "Access-Control-Allow-Origin";
+    headers[6].value = "*";
 
     string str = stat_str;
     for (size_t i=0; i< headers.size(); ++i) {

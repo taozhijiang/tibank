@@ -7,7 +7,14 @@
 
 #include <boost/shared_ptr.hpp>
 
-#include "SqlConnPool.h"
+template <typename T, typename Helper>
+class ConnPool;
+
+class SqlConn;
+class SqlConnPoolHelper;
+
+class RedisConn;
+class RedisConnPoolHelper;
 
 class TimerService;
 class HttpServer;
@@ -33,7 +40,8 @@ public:
 	boost::shared_ptr<TimerService> timer_service_ptr_;
 	boost::shared_ptr<HttpServer> http_server_ptr_;
     boost::shared_ptr<TransProcessTask> trans_process_ptr_;
-    boost::shared_ptr<SqlConnPool> sql_pool_ptr_;
+    boost::shared_ptr<ConnPool<SqlConn, SqlConnPoolHelper>> sql_pool_ptr_;
+	boost::shared_ptr<ConnPool<RedisConn, RedisConnPoolHelper>> redis_pool_ptr_;
 };
 
 

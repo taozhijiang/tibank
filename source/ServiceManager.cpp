@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "TimerService.h"
 #include "HttpServer.h"
+#include "RedisData.h"
 #include "TransProcessTask.h"
 
 #include "ServiceManager.h"
@@ -34,6 +35,14 @@ bool ServiceManager::init() {
         return false;
 	}
 
+	RedisData::instance();
+
+	timer_service_ptr_.reset(new TimerService());
+	if (!timer_service_ptr_ || !timer_service_ptr_->init()) {
+		log_err("Init TimerService failed!");
+		return false;
+	}
+
 	std::string mysql_hostname;
 	int mysql_port;
 	std::string mysql_username;
@@ -42,7 +51,7 @@ bool ServiceManager::init() {
 	if (!get_config_value("mysql.host_addr", mysql_hostname) || !get_config_value("mysql.host_port", mysql_port) ||
 		!get_config_value("mysql.username", mysql_username) || !get_config_value("mysql.passwd", mysql_passwd) ||
         !get_config_value("mysql.database", mysql_database)){
-        log_err("Error, get value error");
+        log_err("Error, get mysql config value error");
         return false;
     }
 
@@ -51,18 +60,37 @@ bool ServiceManager::init() {
 		conn_pool_size = 20;
 		log_info("Using default conn_pool size: 20");
 	}
-    sql_pool_ptr_.reset(new SqlConnPool(conn_pool_size, mysql_hostname, mysql_port,
-										mysql_username, mysql_passwd, mysql_database));
-	if (!sql_pool_ptr_) {
+
+	SqlConnPoolHelper helper(mysql_hostname, mysql_port,
+						     mysql_username, mysql_passwd, mysql_database);
+    sql_pool_ptr_.reset(new ConnPool<SqlConn, SqlConnPoolHelper>("MySQLPool", conn_pool_size, helper));
+	if (!sql_pool_ptr_ || !sql_pool_ptr_->init()) {
 		log_err("Init SqlConnPool failed!");
 		return false;
 	}
 
-	timer_service_ptr_.reset(new TimerService());
-	if (!timer_service_ptr_ || !timer_service_ptr_->init()) {
-		log_err("Init TimerService failed!");
+	std::string redis_hostname;
+	int redis_port;
+	std::string redis_passwd;
+	if (!get_config_value("redis.host_addr", redis_hostname) || !get_config_value("redis.host_port", redis_port)){
+        log_err("Error, get redis config value error");
+        return false;
+    }
+	get_config_value("redis.passwd", redis_passwd);
+	int redis_pool_size;
+	if (!get_config_value("redis.conn_pool_size", redis_pool_size)) {
+		redis_pool_size = 20;
+		log_info("Using default conn_pool size: 20");
+	}
+
+	RedisConnPoolHelper redis_helper(redis_hostname, redis_port, redis_passwd);
+    redis_pool_ptr_.reset(new ConnPool<RedisConn, RedisConnPoolHelper>("RedisPool", redis_pool_size, redis_helper));
+	if (!redis_pool_ptr_ || !redis_pool_ptr_->init()) {
+		log_err("Init RedisConnPool failed!");
 		return false;
 	}
+
+	RedisData::instance().init();
 
     std::string listen_addr;
     int listen_port = 0;
