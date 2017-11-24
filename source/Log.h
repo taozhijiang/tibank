@@ -15,7 +15,7 @@
 // LOG_INFO    6   informational message
 // LOG_DEBUG   7   debug-level message
 
-static const std::size_t MAX_LOG_BUF_SIZE = 16*1024;
+static const std::size_t MAX_LOG_BUF_SIZE = (16*1024 -2);
 
 class Log {
 public:

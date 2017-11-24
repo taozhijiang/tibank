@@ -38,7 +38,7 @@ private:
 		time_t tt = ::time(NULL) - 60; // 上一分钟
 		tm* t= localtime(&tt);
 		char time_buf[128] = {0,};
-		sprintf(time_buf, "%d%2d%2d%2d%2d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
+		sprintf(time_buf, "%d%02d%02d%02d%02d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
 		return time_buf;
 	}
 

@@ -252,13 +252,13 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 			continue;
 		}
 
-		if (net_conn_ptr shared_ptr = net_conn_weak_ptr.lock()) {
-			if (shared_ptr->get_conn_stat() != ConnStat::kConnError) {
-				log_err("Warning, remove unerror conn: %d", shared_ptr->get_conn_stat());
+		if (net_conn_ptr shared_conn_ptr = net_conn_weak_ptr.lock()) {
+			if (shared_conn_ptr->get_conn_stat() != ConnStat::kConnError) {
+				log_err("Warning, remove unerror conn: %d", shared_conn_ptr->get_conn_stat());
 			}
 
 			// log_debug("do remove ... ");
-			net_conns_.ERASE(shared_ptr);
+			net_conns_.ERASE(shared_conn_ptr);
 		}
 
 		// log_info("Current net_conns_ size: %ld ", net_conns_.SIZE());
