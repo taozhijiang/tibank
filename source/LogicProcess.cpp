@@ -21,8 +21,6 @@ void process_logic_1( int& status, int& err_code,
             err_code = TransErrInfo::kTransAmountErr;
         }
     }
-
-    return;
 }
 
 

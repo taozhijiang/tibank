@@ -172,14 +172,28 @@ public:
 	}
 
 	void graceful_stop_tasks(){
-		std::map<ThreadTtr, ThreadObjPtr>::iterator it;
 
-		while (!workers_.empty()) {
-			it = workers_.begin();
-			graceful_stop(it->first, 0);
-		}
+        for (auto it = workers_.begin(); it != workers_.end(); ++it) {
+            it->second->status_ = ThreadStatus::kThreadTerminating;
+        }
 
-		log_info("Good! thread pool clean up down!");
+        while (!workers_.empty()) {
+
+            auto it = workers_.begin();
+            it->first->join();
+
+            if (it->second->status_ != ThreadStatus::kThreadDead) {
+                log_info("may gracefulStop failed!");
+            }
+
+            // release this thread object
+            thread_num_ --;
+            workers_.erase(it->first);
+
+            log_err("current size: %ld", workers_.size());
+        }
+
+        log_info("Good! thread pool clean up down!");
 	}
 
 private:
