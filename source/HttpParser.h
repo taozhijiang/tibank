@@ -16,12 +16,23 @@
 
 typedef KeyValueVec<std::string, std::string> UriParamContainer;
 
+enum HTTP_METHOD {
+GET = 1,
+POST = 2,
+UNKNOWN = 99,
+};
+
 class HttpParser: private boost::noncopyable {
 public:
     HttpParser():
         request_headers_(),
-		request_uri_params_() {
+		request_uri_params_(),
+        method_(HTTP_METHOD::UNKNOWN) {
 	}
+
+    enum HTTP_METHOD get_method() const {
+        return method_;
+    }
 
     bool parse_request_header(const char* header_ptr) {
         if (!header_ptr || !strlen(header_ptr) || !strstr(header_ptr, "\r\n\r\n")) {
@@ -141,9 +152,7 @@ public:
         return request_uri_params_.FIND(key, value);
 	}
 
-private:
-
-	std::string char_to_hex(char c) {
+	std::string char_to_hex(char c) const {
 
 		std::string result;
 		char first, second;
@@ -157,7 +166,7 @@ private:
 		return result;
 	}
 
-	char hex_to_char(char first, char second) {
+	char hex_to_char(char first, char second) const {
 		int digit;
 
 		digit = (first >= 'A' ? ((first & 0xDF) - 'A') + 10 : (first - '0'));
@@ -204,7 +213,7 @@ private:
 	}
 
 
-	std::string url_decode(const std::string& src) {
+	std::string url_decode(const std::string& src) const {
 
 		std::string result;
 		char c;
@@ -235,6 +244,8 @@ private:
 
 		return result;
 	}
+
+private:
 
 	std::string normalize_request_uri(const std::string& uri){
 
@@ -279,6 +290,15 @@ private:
                     request_headers_.insert(std::make_pair(http_proto::header_options::request_method,
                                                        boost::algorithm::trim_copy(boost::to_upper_copy(string(what[1])))));
 
+                    // HTTP Method
+                    if (boost::iequals(find_request_header(http_proto::header_options::request_method), "GET") ) {
+                        method_ = HTTP_METHOD::GET;
+                    } else if (boost::iequals(find_request_header(http_proto::header_options::request_method), "POST") ) {
+                        method_ = HTTP_METHOD::POST;
+                    } else {
+                        method_ = HTTP_METHOD::UNKNOWN;
+                    }
+
 					string uri = normalize_request_uri(string(what[2]));
                     request_headers_.insert(std::make_pair(http_proto::header_options::request_uri, uri));
                     request_headers_.insert(std::make_pair(http_proto::header_options::http_version, boost::algorithm::trim_copy(string(what[3]))));
@@ -292,6 +312,7 @@ private:
 private:
     std::map<std::string, std::string> request_headers_;
 	UriParamContainer request_uri_params_;
+    enum HTTP_METHOD method_;
 };
 
 

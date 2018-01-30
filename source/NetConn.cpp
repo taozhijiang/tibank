@@ -135,7 +135,7 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 			goto error_return;
 		}
 
-		if (boost::iequals(http_parser_.find_request_header(http_proto::header_options::request_method), "GET") ) {
+		if (http_parser_.get_method() == HTTP_METHOD::GET) {
 
 			// HTTP GET handler
 			safe_assert(http_parser_.find_request_header(http_proto::header_options::content_length).empty());
@@ -164,7 +164,7 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 
 			goto write_return;
 
-        } else if (boost::iequals(http_parser_.find_request_header(http_proto::header_options::request_method), "POST") ) {
+        } else if (http_parser_.get_method() == HTTP_METHOD::POST ) {
 
 			// HTTP POST handler
 
@@ -198,7 +198,7 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 			}
 			else {
 				// call the process callback directly
-				read_body_handler(ec, additional_size);   // already updated r_size_
+				read_body_handler(ec, 0);   // already updated r_size_
 			}
 
 			return;
@@ -238,7 +238,7 @@ write_return:
 
 void NetConn::read_body_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
-    if (!ec && bytes_transferred) {
+    if (!ec) {
 
         size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
         r_size_ += bytes_transferred;

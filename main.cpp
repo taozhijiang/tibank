@@ -12,6 +12,7 @@ void backtrace_init();
 
 volatile bool TiBANK_SHUTDOWN = false;
 const char* TiBANK_DATABASE_PREFIX = "tibank";
+struct tm service_start{};
 
 static void interrupted_callback(int signal){
     log_err("Signal %d received ...", signal);
@@ -93,6 +94,9 @@ int main(int argc, char* argv[]) {
     }
 
     log_debug("syslog initialized ok!");
+    time_t now = ::time(NULL);
+    ::localtime_r(&now, &service_start);
+    log_info("Service start at %s", ::asctime(&service_start));
 
     (void)ServiceManager::instance(); // create object first!
 
