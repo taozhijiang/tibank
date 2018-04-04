@@ -13,7 +13,7 @@ Log& Log::instance() {
 bool Log::init(int log_level) {
     openlog(program_invocation_short_name, LOG_PID , LOG_LOCAL6);
     setlogmask (LOG_UPTO (log_level));
-	return true;
+    return true;
 }
 
 void Log::log_api(int priority, const char *file, int line, const char *func, const char *msg, ...) {
@@ -36,7 +36,7 @@ void Log::log_api(int priority, const char *file, int line, const char *func, co
 		buf[n++] = '\n';
 		buf[n] = 0;
 
-		::syslog(priority, buf);
+		::syslog(priority, "%s", buf);
 		return;
 	}
 
@@ -49,7 +49,7 @@ void Log::log_api(int priority, const char *file, int line, const char *func, co
 	for (std::vector<string>::iterator it = messages.begin(); it != messages.end(); ++it){
 		if (!it->empty()) {
 			std::string message = (*it) + "\n";
-			::syslog(priority, message.c_str());
+			::syslog(priority, "%s", message.c_str());
 		}
 	}
 }
