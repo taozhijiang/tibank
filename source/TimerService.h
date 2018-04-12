@@ -5,10 +5,9 @@
 
 #include <boost/thread.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/enable_shared_from_this.hpp>
 
 #include "EQueue.h"
-#include "ThreadPoolHelper.h"
+#include "ThreadPool.h"
 
 
 // 提供定时回调接口服务
@@ -36,20 +35,13 @@ struct TimerTask {
 	}
 };
 
-typedef boost::shared_ptr<TimerTask> TimerTaskPtr;
+typedef std::shared_ptr<TimerTask> TimerTaskPtr;
 
-class TimerService: public boost::noncopyable,
-					  public boost::enable_shared_from_this<TimerService> {
-
-	friend void c_timer_cb(int fd, short what, void *arg);
+class TimerService: public boost::noncopyable {
 public:
-	TimerService():
-		timer_defer_(1) {
-	}
+    static TimerService& instance();
+	friend void c_timer_cb(int fd, short what, void *arg);
 
-	~TimerService(){
-		event_base_free(ev_base_);
-	}
 
 	bool init();
 
@@ -79,7 +71,8 @@ private:
 
 public:
 	// 目前而言最好使用单个工作线程串行执行，否则注册的任务可能会并行执行导致不可预料的结果
-	ThreadPoolHelper timer_defer_;
+	// 工作线程一般用于非实时性的任务，所以考量清楚
+	ThreadPool timer_defer_;
 
 private:
 	EQueue<TimerEventCallable> defer_ready_;
@@ -87,6 +80,15 @@ private:
 	boost::mutex tasks_lock_;
 	std::map<int64_t, TimerTaskPtr> tasks_;  // pointer cast
 	struct event_base *ev_base_;
+
+private:
+    TimerService():
+        timer_defer_(1) {
+    }
+
+    ~TimerService(){
+        event_base_free(ev_base_);
+    }
 };
 
 #endif // __TiBANK_TIMER_SERVICE__

@@ -3,7 +3,7 @@
 
 #include "Utils.h"
 #include "RedisData.h"
-#include "ServiceManager.h"
+#include "SrvManager.h"
 
 
 static const std::string kRedisPrefix = "bankpay";
@@ -16,7 +16,7 @@ RedisData& RedisData::instance() {
 }
 
 bool RedisData::init() {
-	safe_assert( ServiceManager::instance().redis_pool_ptr_);
+	safe_assert( SrvManager::instance().redis_pool_ptr_);
     return true;
 }
 

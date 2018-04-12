@@ -35,23 +35,23 @@ using std::string;
 #include <cstdint>
 #include <linux/limits.h>  //PATH_MAX
 
-#include <boost/shared_ptr.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/weak_ptr.hpp>
+#include <memory>
 
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 
-
 #include <boost/asio.hpp>
 using namespace boost::asio;
 
-typedef boost::shared_ptr<ip::tcp::socket> 	socket_shared_ptr;
-typedef boost::weak_ptr<ip::tcp::socket>   	socket_weak_ptr;
+typedef std::shared_ptr<ip::tcp::socket> 	SocketPtr;
+typedef std::weak_ptr<ip::tcp::socket>   	SocketWeakPtr;
 
 typedef boost::asio::posix::stream_descriptor asio_fd;
-typedef boost::shared_ptr<boost::asio::posix::stream_descriptor> asio_fd_shared_ptr;
+typedef std::shared_ptr<boost::asio::posix::stream_descriptor> asio_fd_shared_ptr;
 
+template<class T>
+T * get_pointer(std::shared_ptr<T> const& p) {
+    return p.get();
+}
 
 #endif // _TiBANK_GENERAL_HPP_

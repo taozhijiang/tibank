@@ -1,13 +1,14 @@
 #include <iostream>
-
-#include <boost/make_shared.hpp>
-
 #include <evutil.h>
 
-#include "TiGeneral.h"
+#include "General.h"
 #include "Log.h"
 #include "TimerService.h"
-#include "ServiceManager.h"
+
+TimerService& TimerService::instance() {
+    static TimerService handler;
+    return handler;
+}
 
 bool TimerService::init() {
 
@@ -20,7 +21,7 @@ bool TimerService::init() {
 	log_info("Current Using Method: %s", event_base_get_method(ev_base_)); // epoll
 
 	// add purge task
-	if (register_timer_task(boost::bind(&TimerService::purge_dead_task, shared_from_this()), 5*1000, true, true) == 0) {
+	if (register_timer_task(boost::bind(&TimerService::purge_dead_task, this), 5*1000, true, true) == 0) {
 		log_err("Register purge task failed!");
 		return false;
 	}
@@ -29,7 +30,9 @@ bool TimerService::init() {
 }
 
 void c_timer_cb(int fd, short what, void *arg) {
-    ServiceManager::instance().timer_service_ptr_->timer_cb(fd, what, arg);
+
+    TimerService::instance().timer_cb(fd, what, arg);
+
 }
 
 void TimerService::timer_cb (int fd, short what, void *arg) {
@@ -113,9 +116,9 @@ void TimerService::timer_defer_run(ThreadObjPtr ptr){
 
 int TimerService::start_timer(){
 
-	timer_thread_ = boost::thread(boost::bind(&TimerService::timer_run, shared_from_this()));
+	timer_thread_ = boost::thread(boost::bind(&TimerService::timer_run, this));
 
-	if (! timer_defer_.init_threads(boost::bind(&TimerService::timer_defer_run, shared_from_this(),_1))) {
+	if (! timer_defer_.init_threads(boost::bind(&TimerService::timer_defer_run, this,_1))) {
 		log_err("PbiTimerService::init failed!");
 		return -1;
 	}
@@ -153,7 +156,7 @@ int64_t TimerService::register_timer_task(TimerEventCallable func, int64_t msec,
 	tv.tv_usec = (msec % 1000) * 1000;
 	tv.tv_sec = msec / 1000;
 
-	TimerTaskPtr task_ptr = boost::make_shared<TimerTask>(func, tv, persist, fast);
+	TimerTaskPtr task_ptr = std::make_shared<TimerTask>(func, tv, persist, fast);
 	if (!task_ptr) {
 		return 0;
 	}

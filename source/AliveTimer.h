@@ -10,7 +10,7 @@
 template<typename T>
 class AliveItem {
 public:
-	AliveItem(time_t tm, boost::shared_ptr<T> t_ptr):
+	AliveItem(time_t tm, std::shared_ptr<T> t_ptr):
 		time_(tm), raw_ptr_(t_ptr.get()), weak_ptr_(t_ptr) {
 	}
 
@@ -22,34 +22,34 @@ public:
         return raw_ptr_;
     }
 
-    boost::weak_ptr<T> get_weak_ptr() {
+    std::weak_ptr<T> get_weak_ptr() {
         return weak_ptr_;
     }
 
 private:
 	time_t time_;
     T*     raw_ptr_;
-	boost::weak_ptr<T> weak_ptr_;
+	std::weak_ptr<T> weak_ptr_;
 };
 
 template<typename T>
 class AliveTimer {
 public:
-    typedef boost::shared_ptr<AliveItem<T> > active_item_ptr;
-	typedef std::map<time_t, std::set<active_item_ptr> > Container;
-	typedef std::map<T*, active_item_ptr >     HashContainer;
-    typedef boost::function<int(boost::shared_ptr<T>)> ExpiredHandler;
+    typedef std::shared_ptr<AliveItem<T> >             active_item_ptr;
+    typedef std::map<time_t, std::set<active_item_ptr> > TimeContainer;       // ÒÔÃëÎªµ¥Î»
+    typedef std::map<T*, active_item_ptr >               BucketContainer;     // Í¨¹ýshared_ptr vs T*µÄ¹ØÏµ£¬½¨Á¢Á½¸öÈÝÆ÷µÄÁ´½Ó
+    typedef boost::function<int(std::shared_ptr<T>)>   ExpiredHandler;
 
 public:
 
     explicit AliveTimer(time_t time_out = 10*60, time_t time_linger = 30):
-		func_(), lock_(), items_(),
+        func_(), lock_(), time_items_(), bucket_items_(),
         time_out_(time_out), time_linger_(time_linger) {
         initialized_ = false;
 	}
 
 	explicit AliveTimer(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30):
-		func_(func), lock_(), items_(),
+        func_(func), lock_(), time_items_(), bucket_items_(),
         time_out_(time_out), time_linger_(time_linger) {
         initialized_ = true;
 	}
@@ -66,15 +66,15 @@ public:
 	~AliveTimer(){
 	}
 
-    bool touch(boost::shared_ptr<T> ptr) {
+    bool touch(std::shared_ptr<T> ptr) {
         time_t tm = ::time(NULL) + time_out_;
         return touch(ptr, tm);
 	}
 
-	bool touch(boost::shared_ptr<T> ptr, time_t tm) {
+	bool touch(std::shared_ptr<T> ptr, time_t tm) {
 		boost::unique_lock<boost::mutex> lock(lock_);
-		typename HashContainer::iterator iter = hashed_items_.find(ptr.get());
-		if (iter == hashed_items_.end()) {
+        typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
+        if (iter == bucket_items_.end()) {
 			log_err("touched item not found!");
 			return false;
 		}
@@ -85,48 +85,48 @@ public:
             return true;
         }
 
-        if (items_.find(before) == items_.end()){
+        if (time_items_.find(before) == time_items_.end()){
             safe_assert(false);
             log_err("bucket tm: %ld not found, critical error!", before);
             return false;
         }
 
-        if (items_.find(tm) == items_.end()) {
-			items_[tm] = std::set<active_item_ptr>();
+        if (time_items_.find(tm) == time_items_.end()) {
+            time_items_[tm] = std::set<active_item_ptr>();  // create new time bucket
 		}
 
-		items_[tm].insert(iter->second);
-        items_[before].erase(iter->second);
+        time_items_[tm].insert(iter->second);
+        time_items_[before].erase(iter->second);
         log_debug("touched: %p, %ld -> %ld", ptr.get(), before, tm);
         return true;
 	}
 
-    bool insert(boost::shared_ptr<T> ptr) {
+    bool insert(std::shared_ptr<T> ptr) {
         time_t tm = ::time(NULL) + time_out_;
         return insert(ptr, tm);
     }
 
-	bool insert(boost::shared_ptr<T> ptr, time_t tm ) {
+	bool insert(std::shared_ptr<T> ptr, time_t tm ) {
 		boost::unique_lock<boost::mutex> lock(lock_);
-		typename HashContainer::iterator iter = hashed_items_.find(ptr.get());
-		if (iter != hashed_items_.end()) {
+        typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
+        if (iter != bucket_items_.end()) {
 			log_err("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
                             iter->second->get_raw_ptr());
 			return false;
 		}
 
-		active_item_ptr alive_item = boost::make_shared<AliveItem<T> >(tm, ptr);
+		active_item_ptr alive_item = std::make_shared<AliveItem<T> >(tm, ptr);
         if (!alive_item){
             log_err("Create AliveItem failed!");
             return false;
         }
 
-        hashed_items_[ptr.get()] = alive_item;
+        bucket_items_[ptr.get()] = alive_item;
 
-        if (items_.find(tm) == items_.end()) {
-			items_[tm] = std::set<active_item_ptr>();
+        if (time_items_.find(tm) == time_items_.end()) {
+            time_items_[tm] = std::set<active_item_ptr>();
 		}
-		items_[tm].insert(alive_item);
+        time_items_[tm].insert(alive_item);
 
         log_debug("inserted: %p, %ld", ptr.get(), tm);
 		return true;
@@ -142,25 +142,25 @@ public:
 
         time_t now = ::time(NULL);
 		boost::unique_lock<boost::mutex> lock(lock_);
-        typename Container::iterator iter = items_.begin();
-        typename Container::iterator remove_iter = items_.end();
-        for ( ; iter != items_.end(); ){
+        typename TimeContainer::iterator iter = time_items_.begin();
+        typename TimeContainer::iterator remove_iter = time_items_.end();
+        for ( ; iter != time_items_.end(); ){
             if (iter->first < now) {
                 typename std::set<active_item_ptr>::iterator it = iter->second.begin();
                 for (; it != iter->second.end(); ++it) {
                     T* p = (*it)->get_raw_ptr();
-                    if (hashed_items_.find(p) == hashed_items_.end()) {
+                    if (bucket_items_.find(p) == bucket_items_.end()) {
                         safe_assert(false);
-                        log_err("hashed item: %p not found, critical error!", p);
+                        log_err("bucket item: %p not found, critical error!", p);
                     }
 
-                    log_debug("hash item remove: %p, %ld", p, (*it)->get_expire_time());
-                    hashed_items_.erase(p);
-                    boost::weak_ptr<T> weak_item = (*it)->get_weak_ptr();
-                    if (boost::shared_ptr<T> ptr = weak_item.lock()) {
+                    log_debug("bucket item remove: %p, %ld", p, (*it)->get_expire_time());
+                    bucket_items_.erase(p);
+                    std::weak_ptr<T> weak_item = (*it)->get_weak_ptr();
+                    if (std::shared_ptr<T> ptr = weak_item.lock()) {
                         func_(ptr);
                     } else {
-                        log_debug("Item %p may already release before ...", p);
+                        log_err("item %p may already release before ...", p);
                     }
                 }
 
@@ -169,24 +169,25 @@ public:
 
                 log_debug("expire entry remove: %ld, now:%ld count:%ld", iter->first, now, iter->second.size());
                 remove_iter = iter ++;
-                items_.erase(remove_iter);
+                time_items_.erase(remove_iter);
             }
             else {
+				       // time_t æ˜¯å·²ç»æŽ’åºäº†çš„
                 break; // all expired clean
             }
         }
 
         int64_t total_count = 0;
-        for (iter = items_.begin() ; iter != items_.end(); ++ iter) {
+        for (iter = time_items_.begin() ; iter != time_items_.end(); ++ iter) {
             total_count += iter->second.size();
         }
-        log_debug("current alived hashed count:%ld, timed_count: %ld", hashed_items_.size(), total_count);
+        log_debug("current alived hashed count:%ld, timed_count: %ld", bucket_items_.size(), total_count);
     }
 
 private:
 	mutable boost::mutex lock_;
-	Container items_;
-	HashContainer hashed_items_;
+    TimeContainer   time_items_;
+    BucketContainer bucket_items_;
     ExpiredHandler func_;
     bool initialized_;
 

@@ -1,6 +1,8 @@
 #ifndef _TiBANK_HTTP_PARSER_H_
 #define _TiBANK_HTTP_PARSER_H_
 
+#include "General.h"
+
 #include <map>
 #include <sstream>
 #include <iterator>
@@ -9,7 +11,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/regex.hpp>
 
-#include "TiGeneral.h"
 #include "HttpProto.h"
 #include "KeyValueVec.h"
 #include "Log.h"
@@ -33,6 +34,10 @@ public:
     enum HTTP_METHOD get_method() const {
         return method_;
     }
+
+	std::string get_version() const {
+		return version_;
+	}
 
     bool parse_request_header(const char* header_ptr) {
         if (!header_ptr || !strlen(header_ptr) || !strstr(header_ptr, "\r\n\r\n")) {
@@ -302,6 +307,8 @@ private:
 					string uri = normalize_request_uri(string(what[2]));
                     request_headers_.insert(std::make_pair(http_proto::header_options::request_uri, uri));
                     request_headers_.insert(std::make_pair(http_proto::header_options::http_version, boost::algorithm::trim_copy(string(what[3]))));
+
+					version_ = boost::algorithm::trim_copy(string(what[3]));
 				}
             }
         }
@@ -313,6 +320,7 @@ private:
     std::map<std::string, std::string> request_headers_;
 	UriParamContainer request_uri_params_;
     enum HTTP_METHOD method_;
+	std::string version_;
 };
 
 

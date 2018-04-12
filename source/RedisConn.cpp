@@ -1,4 +1,4 @@
-#include "TiGeneral.h"
+#include "General.h"
 
 #include <boost/lexical_cast.hpp>
 

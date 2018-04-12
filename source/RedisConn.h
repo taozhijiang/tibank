@@ -9,7 +9,7 @@
 #include "ConnPool.h"
 
 class RedisConn;
-typedef boost::shared_ptr<RedisConn> redis_conn_ptr;
+typedef std::shared_ptr<RedisConn> redis_conn_ptr;
 
 struct RedisConnPoolHelper {
 public:
@@ -23,7 +23,7 @@ public:
     const string passwd_;
 };
 
-typedef boost::shared_ptr<redisReply> redisReply_ptr;
+typedef std::shared_ptr<redisReply> redisReply_ptr;
 
 class RedisConn: public boost::noncopyable {
 public:
@@ -49,7 +49,7 @@ public:
 
 private:
 	int64_t  conn_uuid_;   // reinterpret_cast
-	boost::shared_ptr<redisContext> context_;
+	std::shared_ptr<redisContext> context_;
 
     // may be used in future
     ConnPool<RedisConn, RedisConnPoolHelper>& pool_;

@@ -4,18 +4,17 @@
 #include <boost/format.hpp>
 #include <boost/thread.hpp>
 
-#include "HttpServer.h"
-#include "NetConn.h"
 #include "HttpHandler.h"
 #include "Utils.h"
-#include "ServiceManager.h"
+#include "SrvManager.h"
 #include "TimerService.h"
 
 #include "Log.h"
+#include "HttpServer.h"
 
 static const size_t bucket_size_ = 0xFF;
-static size_t bucket_hash_index_call(const net_conn_ptr& ptr) {
-    return std::hash<NetConn *>()(ptr.get());
+static size_t bucket_hash_index_call(const std::shared_ptr<ConnType>& ptr) {
+    return std::hash<ConnType *>()(ptr.get());
 }
 
 HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c_cz, std::string docu_root) :
@@ -25,10 +24,10 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c
 	docu_root_(docu_root),
 	docu_index_({"index.html", "index.htm", "index.xhtml"}),
     io_service_threads_(c_cz),
-    net_conns_(bucket_size_, bucket_hash_index_call),
+    conns_(bucket_size_, bucket_hash_index_call),
 	pending_to_remove_(),
-	alived_conns_(),
-	net_conn_remove_threads_(1) {
+	conns_alive_(),
+	conn_remove_threads_(1) {
 
     acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
     acceptor_.listen();
@@ -38,7 +37,7 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c
 
 bool HttpServer::init() {
 
-	if (!net_conns_.init()) {
+	if (!conns_.init()) {
 		log_err("Init net_conns_ BucketSet failed!");
 		return false;
 	}
@@ -48,7 +47,7 @@ bool HttpServer::init() {
 		return false;
 	}
 
-	if (!net_conn_remove_threads_.init_threads(boost::bind(&HttpServer::net_conn_remove_run, shared_from_this(), _1))) {
+	if (!conn_remove_threads_.init_threads(boost::bind(&HttpServer::conn_remove_run, shared_from_this(), _1))) {
 		log_err("HttpServer::net_conn_remove_run init task failed!");
 		return false;
 	}
@@ -69,11 +68,11 @@ bool HttpServer::init() {
         return false;
     }
 	log_debug("socket conn time_out: %ds, linger: %ds", conn_time_out, conn_time_linger);
-    alived_conns_.init(boost::bind(&HttpServer::add_net_conn_to_remove, this, _1),
+    conns_alive_.init(boost::bind(&HttpServer::conn_pend_remove, this, _1),
 									conn_time_out, conn_time_linger);
 
-    if (ServiceManager::instance().timer_service_ptr_->register_timer_task(
-                                    boost::bind(&AliveTimer<NetConn>::clean_up, &alived_conns_),
+    if (TimerService::instance().register_timer_task(
+                                    boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_),
                                     5*1000, true, false) == 0) {
 		log_err("Register alive purge task failed!");
 		return false;
@@ -120,13 +119,13 @@ void HttpServer::io_service_run(ThreadObjPtr ptr) {
 
 void HttpServer::do_accept() {
 
-    socket_shared_ptr sock_ptr(new ip::tcp::socket(io_service_));
+    SocketPtr sock_ptr(new ip::tcp::socket(io_service_));
     acceptor_.async_accept(*sock_ptr,
                            boost::bind(&HttpServer::accept_handler, this,
                                        boost::asio::placeholders::error, sock_ptr));
 }
 
-void HttpServer::accept_handler(const boost::system::error_code& ec, socket_shared_ptr sock_ptr) {
+void HttpServer::accept_handler(const boost::system::error_code& ec, SocketPtr sock_ptr) {
 
     if (ec) {
         log_err("Error during accept!");
@@ -138,8 +137,8 @@ void HttpServer::accept_handler(const boost::system::error_code& ec, socket_shar
         sock_ptr->remote_endpoint().port();
 	log_debug(output.str().c_str());
 
-    net_conn_ptr new_conn = boost::make_shared<NetConn>(sock_ptr, *this);
-	add_net_conn(new_conn);
+    ConnTypePtr new_conn = std::make_shared<ConnType>(sock_ptr, *this);
+	conn_add(new_conn);
 
     new_conn->start();
 
@@ -225,7 +224,7 @@ int HttpServer::io_service_stop_graceful() {
 }
 
 // main task loop
-void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
+void HttpServer::conn_remove_run(ThreadObjPtr ptr) {
 
 	std::stringstream ss_id;
 	ss_id << boost::this_thread::get_id();
@@ -246,19 +245,19 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 			continue;
 		}
 
-		net_conn_weak net_conn_weak_ptr;
+		ConnTypeWeakPtr net_conn_weak_ptr;
 		if (!pending_to_remove_.POP(net_conn_weak_ptr, 3 * 1000 /*3s*/)) {
 			//log_debug("net_conn remove timeout return!");
 			continue;
 		}
 
-		if (net_conn_ptr shared_conn_ptr = net_conn_weak_ptr.lock()) {
+		if (ConnTypePtr shared_conn_ptr = net_conn_weak_ptr.lock()) {
 			if (shared_conn_ptr->get_conn_stat() != ConnStat::kConnError) {
 				log_err("Warning, remove unerror conn: %d", shared_conn_ptr->get_conn_stat());
 			}
 
 			// log_debug("do remove ... ");
-			net_conns_.ERASE(shared_conn_ptr);
+			conns_.ERASE(shared_conn_ptr);
 		}
 
 		// log_info("Current net_conns_ size: %ld ", net_conns_.SIZE());
@@ -272,10 +271,10 @@ void HttpServer::net_conn_remove_run(ThreadObjPtr ptr) {
 }
 
 
-int HttpServer::net_conn_remove_stop_graceful() {
+int HttpServer::conn_remove_stop_graceful() {
 
-	log_err("About to stop net_conn_remove thread ... ");
-	net_conn_remove_threads_.graceful_stop_threads();
+	log_err("about to stop net_conn_remove thread ... ");
+	conn_remove_threads_.graceful_stop_threads();
 
 	return 0;
 }

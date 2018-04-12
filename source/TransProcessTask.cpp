@@ -347,7 +347,7 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
                 continue;
             }
 
-			EQueueDataPtr qd = boost::make_shared<EQueueData>(F_merch_id, F_trans_id, F_account_type);
+			EQueueDataPtr qd = std::make_shared<EQueueData>(F_merch_id, F_trans_id, F_account_type);
 			if (!qd) {
 				log_err("New process task object failed: '%s', '%s', '%d' ", F_merch_id.c_str(), F_trans_id.c_str(), F_account_type);
 				continue;

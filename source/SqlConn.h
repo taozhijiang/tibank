@@ -1,10 +1,11 @@
 #ifndef _TiBANK_SQL_CONN_H_
 #define _TiBANK_SQL_CONN_H_
 
+#include "General.h"
+
 #include <vector>
 
 #include <boost/noncopyable.hpp>
-#include <boost/enable_shared_from_this.hpp>
 
 #include <cppconn/driver.h>
 #include <cppconn/connection.h>
@@ -13,14 +14,12 @@
 #include <cppconn/statement.h>
 
 #include "Log.h"
-#include "TiGeneral.h"
-
 #include "ConnPool.h"
 
 class SqlConn;
-typedef boost::shared_ptr<SqlConn> sql_conn_ptr;
-typedef boost::scoped_ptr<sql::ResultSet> scoped_result_ptr;
-typedef boost::shared_ptr<sql::ResultSet> shared_result_ptr;
+typedef std::shared_ptr<SqlConn> sql_conn_ptr;
+typedef std::unique_ptr<sql::ResultSet> scoped_result_ptr;
+typedef std::shared_ptr<sql::ResultSet> shared_result_ptr;
 
 struct SqlConnPoolHelper {
 public:
@@ -124,8 +123,8 @@ private:
     sql::Driver* driver_;   /* no need explicit free */
 
     int64_t  conn_uuid_;   // reinterpret_cast
-    boost::scoped_ptr<sql::Connection> conn_;
-    boost::scoped_ptr<sql::Statement> stmt_;
+    std::unique_ptr<sql::Connection> conn_;
+    std::unique_ptr<sql::Statement> stmt_;
 
     // may be used in future
     ConnPool<SqlConn, SqlConnPoolHelper>& pool_;

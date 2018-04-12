@@ -3,12 +3,13 @@ void backtrace_init();
 
 #include "config.h"
 
-#include "TiGeneral.h"
+#include "General.h"
 #include "Utils.h"
 #include "Log.h"
-#include "ServiceManager.h"
+#include "SrvManager.h"
 
 #include "commonutil/SslSetup.h"
+#include "commonutil/HttpUtil.h"
 
 volatile bool TiBANK_SHUTDOWN = false;
 const char* TiBANK_DATABASE_PREFIX = "tibank";
@@ -21,14 +22,14 @@ static void interrupted_callback(int signal){
 
 	case SIGQUIT:
             log_info("Graceful stop tibank service ... ");
-            ServiceManager::instance().service_graceful();
+            SrvManager::instance().service_graceful();
             log_info("Graceful stop tibank done!"); // main join all
             TiBANK_SHUTDOWN = true;
             break;
 
         case SIGTERM:
             log_info("Immediately shutdown tibank service ... ");
-            ServiceManager::instance().service_terminate();
+            SrvManager::instance().service_terminate();
             log_info("Immediately shutdown tibank service done! ");
             TiBANK_SHUTDOWN = true;
             ::sleep(1);
@@ -98,14 +99,15 @@ int main(int argc, char* argv[]) {
     ::localtime_r(&now, &service_start);
     log_info("Service start at %s", ::asctime(&service_start));
 
-    (void)ServiceManager::instance(); // create object first!
+    (void)SrvManager::instance(); // create object first!
+    HttpUtil::InitHttpEnvironment();
 
     create_process_pid();
     init_signal_handle();
     backtrace_init();
 
-    if(!ServiceManager::instance().init()) {
-        log_err("ServiceManager init error!");
+    if(!SrvManager::instance().init()) {
+        log_err("SrvManager init error!");
         ::exit(1);
     }
 
@@ -116,7 +118,7 @@ int main(int argc, char* argv[]) {
     }
 
     log_debug( "TiBank system initialized ok!");
-    ServiceManager::instance().service_joinall();
+    SrvManager::instance().service_joinall();
 
     Ssl_thread_clean();
 

@@ -9,28 +9,28 @@ enum ConnStat {
     kConnError,
 };
 
+enum ShutdownType {
+	kShutdownSend = 1,
+	kShutdownRecv = 2,
+	kShutdownBoth = 3,
+};
+
 class ConnIf {
 
 public:
 
     /// Construct a connection with the given socket.
-    explicit ConnIf(boost::shared_ptr<ip::tcp::socket> sock_ptr):
+    explicit ConnIf(std::shared_ptr<ip::tcp::socket> sock_ptr):
         conn_stat_(kConnPending), sock_ptr_(sock_ptr) {
-        set_tcp_nonblocking(true);
+        set_tcp_nonblocking(false);
     }
-
-    virtual void start() = 0;
-
-    virtual void do_read() = 0;
-    virtual void do_write() = 0;
-
-    virtual void read_handler(const boost::system::error_code& ec, std::size_t bytes_transferred) = 0;
-    virtual void write_handler(const boost::system::error_code &ec, std::size_t bytes_transferred) = 0;
 
     virtual ~ConnIf() {}
 
 public:
     // some general tiny function
+    // some general tiny settings function
+
     bool set_tcp_nonblocking(bool set_value) {
         socket_base::non_blocking_io command(set_value);
         sock_ptr_->io_control(command);
@@ -58,9 +58,16 @@ public:
         return (option.value() == set_value);
     }
 
-    void sock_shutdown(ip::tcp::socket::shutdown_type s_type) {
+    void sock_shutdown(enum ShutdownType s) {
+
         boost::system::error_code ignore_ec;
-        sock_ptr_->shutdown(s_type, ignore_ec);
+		if (s == kShutdownSend) {
+			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_send, ignore_ec);
+		} else if (s == kShutdownRecv) {
+			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_receive, ignore_ec);
+		} else if (s == kShutdownBoth) {
+			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_both, ignore_ec);
+		}
     }
 
     enum ConnStat get_conn_stat() { return conn_stat_; }
@@ -70,8 +77,11 @@ private:
     enum ConnStat conn_stat_;
 
 protected:
-    boost::shared_ptr<ip::tcp::socket> sock_ptr_;
+    std::shared_ptr<ip::tcp::socket> sock_ptr_;
 };
 
+
+typedef std::shared_ptr<ConnIf> ConnIfPtr;
+typedef std::weak_ptr<ConnIf>   ConnIfWeakPtr;
 
 #endif //_TiBANK_CONN_IF_HPP_

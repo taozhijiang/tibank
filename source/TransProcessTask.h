@@ -1,10 +1,8 @@
 #ifndef __TiBANK_PROCESS_TASK_H__
 #define __TiBANK_PROCESS_TASK_H__
 
-#include <boost/enable_shared_from_this.hpp>
-
-#include "ThreadPoolHelper.h"
-#include "ServiceManager.h"
+#include "ThreadPool.h"
+#include "SrvManager.h"
 
 
 // ProcessTask utils
@@ -73,7 +71,7 @@ public:
 	int          process_count_;   //回盘接口调动计数
 };
 
-typedef boost::shared_ptr<EQueueData> EQueueDataPtr;
+typedef std::shared_ptr<EQueueData> EQueueDataPtr;
 typedef std::list<EQueueDataPtr> EQueueList;
 
 int creat_trans_process_task(EQueueDataPtr qd);
@@ -86,7 +84,7 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
 
 int do_process_task(EQueueDataPtr qd);
 
-class TransProcessTask: public boost::enable_shared_from_this<TransProcessTask>
+class TransProcessTask: public std::enable_shared_from_this<TransProcessTask>
 {
 public:
 	explicit TransProcessTask(uint8_t thread_num):
@@ -104,7 +102,7 @@ private:
 public:
 	// 工作线程组
 	uint8_t thread_num_init_;
-	ThreadPoolHelper trans_process_task_;
+	ThreadPool trans_process_task_;
 };
 
 

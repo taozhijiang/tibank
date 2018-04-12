@@ -2,18 +2,18 @@
 #include <boost/algorithm/string.hpp>
 
 #include "HttpServer.h"
-#include "NetConn.h"
+#include "TCPConnAsync.h"
 
 namespace http_handler {
 extern int default_http_get_handler(const HttpParser& http_parser, std::string& response, string& status);
 } // end namespace
 
-NetConn::NetConn(boost::shared_ptr<ip::tcp::socket> sock_ptr,
-                       HttpServer& server):
-    ConnIf(sock_ptr),
+TCPConnAsync::TCPConnAsync(std::shared_ptr<ip::tcp::socket> p_socket,
+                           HttpServer& server):
+    ConnIf(p_socket),
     http_server_(server),
     http_parser_(),
-    strand_(boost::make_shared<io_service::strand>(server.io_service_)) {
+    strand_(std::make_shared<io_service::strand>(server.io_service_)) {
 
     set_tcp_nodelay(true);
 
@@ -24,25 +24,25 @@ NetConn::NetConn(boost::shared_ptr<ip::tcp::socket> sock_ptr,
     set_tcp_nonblocking(true);
 
     // 可以被后续resize增加
-    p_buffer_ = boost::make_shared<std::vector<char> >(16*1024, 0);
-    p_write_  = boost::make_shared<std::vector<char> >(16*1024, 0);
+    p_buffer_ = std::make_shared<std::vector<char> >(16*1024, 0);
+    p_write_  = std::make_shared<std::vector<char> >(16*1024, 0);
 
 }
 
-void NetConn::start() override {
+void TCPConnAsync::start() override {
     set_conn_stat(ConnStat::kConnWorking);
     r_size_ = w_size_ = w_pos_ = 0;
     do_read_head();
 }
 
-void NetConn::stop() {
+void TCPConnAsync::stop() {
     set_conn_stat(ConnStat::kConnPending);
 }
 
 // Wrapping the handler with strand.wrap. This will return a new handler, that will dispatch through the strand.
 // Posting or dispatching directly through the strand.
 
-void NetConn::do_read_head() {
+void TCPConnAsync::do_read_head() {
 
     if (get_conn_stat() != ConnStat::kConnWorking) {
         log_err("Socket Status Error: %d", get_conn_stat());
@@ -56,7 +56,7 @@ void NetConn::do_read_head() {
     async_read_until(*sock_ptr_, request_,
                              "\r\n\r\n",
                              strand_->wrap(
-                                 boost::bind(&NetConn::read_head_handler,
+                                 boost::bind(&TCPConnAsync::read_head_handler,
                                      shared_from_this(),
                                      boost::asio::placeholders::error,
                                      boost::asio::placeholders::bytes_transferred)));
@@ -64,7 +64,7 @@ void NetConn::do_read_head() {
 }
 
 
-void NetConn::do_read_body() {
+void TCPConnAsync::do_read_body() {
 
     if (get_conn_stat() != ConnStat::kConnWorking) {
         log_err("Socket Status Error: %d", get_conn_stat());
@@ -80,14 +80,14 @@ void NetConn::do_read_body() {
     async_read(*sock_ptr_, buffer(p_buffer_->data() + r_size_, len - r_size_),
                     boost::asio::transfer_at_least(len - r_size_),
                              strand_->wrap(
-                                 boost::bind(&NetConn::read_body_handler,
+                                 boost::bind(&TCPConnAsync::read_body_handler,
                                      shared_from_this(),
                                      boost::asio::placeholders::error,
                                      boost::asio::placeholders::bytes_transferred)));
     return;
 }
 
-void NetConn::do_write() override {
+void TCPConnAsync::do_write() override {
 
     if (get_conn_stat() != ConnStat::kConnWorking) {
         log_err("Socket Status Error: %d", get_conn_stat());
@@ -104,16 +104,16 @@ void NetConn::do_write() override {
     async_write(*sock_ptr_, buffer(p_write_->data() + w_pos_, w_size_ - w_pos_),
                     boost::asio::transfer_at_least(w_size_ - w_pos_),
                               strand_->wrap(
-                                 boost::bind(&NetConn::write_handler,
+                                 boost::bind(&TCPConnAsync::write_handler,
                                      shared_from_this(),
                                      boost::asio::placeholders::error,
                                      boost::asio::placeholders::bytes_transferred)));
     return;
 }
 
-void NetConn::read_head_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
+void TCPConnAsync::read_head_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
-    http_server_.touch_net_conn(shared_from_this());
+    http_server_.conn_touch(shared_from_this());
 
     if (!ec && bytes_transferred) {
 
@@ -150,14 +150,16 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 				handler = http_handler::default_http_get_handler;
 			} else if(!handler) {
 				log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
-				fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
+				fill_http_for_send(http_proto::content_bad_request,
+                                   http_proto::generate_response_status_line(http_parser_.get_version(), http_proto::StatusCode::client_error_bad_request));
 				goto write_return;
 			}
 
 			handler(http_parser_, response_body, response_status); // just call it!
 			if (response_body.empty() || response_status.empty()) {
 				log_err("caller not generate response body!");
-				fill_http_for_send(http_proto::content_ok, http_proto::status::ok);
+				fill_http_for_send(http_proto::content_ok,
+                                   http_proto::generate_response_status_line(http_parser_.get_version(), http_proto::StatusCode::success_ok));
 			} else {
 				fill_http_for_send(response_body, response_status);
 			}
@@ -187,7 +189,6 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 
 				memcpy(p_buffer_->data(), additional.c_str(), additional_size + 1);
 				r_size_ = additional_size;
-
 				request_.consume(additional_size); // skip the head part
 			}
 
@@ -205,7 +206,8 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
 
         } else {
 			log_err("Invalid or unsupport request method: %s", http_parser_.find_request_header(http_proto::header_options::request_method).c_str());
-            fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
+            fill_http_for_send(http_proto::content_bad_request,
+                               http_proto::generate_response_status_line(http_parser_.get_version(), http_proto::StatusCode::client_error_bad_request));
             goto write_return;
 		}
 
@@ -223,7 +225,8 @@ void NetConn::read_head_handler(const boost::system::error_code& ec, size_t byte
     }
 
 error_return:
-    fill_http_for_send(http_proto::content_error, http_proto::status::internal_server_error);
+    fill_http_for_send(http_proto::content_error,
+                       http_proto::generate_response_status_line(http_parser_.get_version(), http_proto::StatusCode::server_error_internal_server_error));
     request_.consume(request_.size());
     r_size_ = 0;
 
@@ -236,13 +239,12 @@ write_return:
 }
 
 
-void NetConn::read_body_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
+void TCPConnAsync::read_body_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
     if (!ec) {
 
         size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
         r_size_ += bytes_transferred;
-
         if (r_size_ < len) {
             // need to read more, do again!
             do_read_body();
@@ -255,19 +257,22 @@ void NetConn::read_body_handler(const boost::system::error_code& ec, size_t byte
 		std::string response_status;
 		if (http_server_.find_http_post_handler(real_path_info, handler) != 0){
             log_err("uri %s handler not found, and no default!", real_path_info.c_str());
-            fill_http_for_send(http_proto::content_not_found, http_proto::status::not_found);
+            fill_http_for_send(http_proto::content_not_found,
+                               http_proto::generate_response_status_line(http_parser_.get_version(), http_proto::StatusCode::client_error_not_found));
         } else {
             if (handler) {
                 handler(http_parser_, std::string(p_buffer_->data(), r_size_), response_body, response_status); // call it!
                 if (response_body.empty() || response_status.empty()) {
                     log_err("caller not generate response body!");
-                    fill_http_for_send(http_proto::content_ok, http_proto::status::ok);
+                    fill_http_for_send(http_proto::content_ok,
+                                       http_proto::generate_response_status_line(http_parser_.get_version(), http_proto::StatusCode::success_ok));
                 } else {
 					fill_http_for_send(response_body, response_status);
 				}
             } else {
                 log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
-                fill_http_for_send(http_proto::content_bad_request, http_proto::status::bad_request);
+                fill_http_for_send(http_proto::content_bad_request,
+                                   http_proto::generate_response_status_line(http_parser_.get_version(), http_proto::StatusCode::client_error_bad_request));
             }
         }
 
@@ -294,9 +299,9 @@ write_return:
 }
 
 
-void NetConn::write_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
+void TCPConnAsync::write_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
-    http_server_.touch_net_conn(shared_from_this());
+    http_server_.conn_touch(shared_from_this());
 
     if (!ec && bytes_transferred) {
 
@@ -321,15 +326,16 @@ void NetConn::write_handler(const boost::system::error_code& ec, size_t bytes_tr
 }
 
 
-void NetConn::fill_http_for_send(const char* data, size_t len, const string& status = http_proto::status::ok) {
-    safe_assert(data && len);
+void TCPConnAsync::fill_http_for_send(const char* data, size_t len, const string& status_line) {
+
+	safe_assert(data && len);
 
     if (!data || !len) {
         log_err("Check send data...");
         return;
     }
 
-    string content = http_proto::http_response_generate(data, len, status);
+    string content = http_proto::http_response_generate(data, len, status_line);
     if (content.size() + 1 > p_write_->size())
         p_write_->resize(content.size() + 1);
 
@@ -343,9 +349,9 @@ void NetConn::fill_http_for_send(const char* data, size_t len, const string& sta
 }
 
 
-void NetConn::fill_http_for_send(const string& str, const string& status = http_proto::status::ok) {
+void TCPConnAsync::fill_http_for_send(const string& str, const string& status_line) {
 
-    string content = http_proto::http_response_generate(str, status);
+    string content = http_proto::http_response_generate(str, status_line);
     if (content.size() + 1 > p_write_->size())
         p_write_->resize(content.size() + 1);
 
@@ -358,7 +364,7 @@ void NetConn::fill_http_for_send(const string& str, const string& status = http_
 }
 
 // http://www.boost.org/doc/libs/1_44_0/doc/html/boost_asio/reference/error__basic_errors.html
-bool NetConn::handle_socket_ec(const boost::system::error_code& ec) {
+bool TCPConnAsync::handle_socket_ec(const boost::system::error_code& ec) {
 
 	bool close_socket = false;
 
@@ -377,7 +383,7 @@ bool NetConn::handle_socket_ec(const boost::system::error_code& ec) {
 
 	if (close_socket) {
 		set_conn_stat(ConnStat::kConnError);
-		http_server_.add_net_conn_to_remove(shared_from_this());
+		http_server_.conn_pend_remove(shared_from_this());
         http_server_.get_keep_alived().touch(shared_from_this(), ::time(NULL));
 	}
 

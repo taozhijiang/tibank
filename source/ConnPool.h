@@ -1,7 +1,7 @@
 #ifndef _TiBANK_CONN_POOL_H_
 #define _TiBANK_CONN_POOL_H_
 
-#include "TiGeneral.h"
+#include "General.h"
 
 #include <set>
 #include <deque>
@@ -12,31 +12,29 @@
 
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
-#include <boost/enable_shared_from_this.hpp>
 
-#include "ServiceManager.h"
 #include "TimerService.h"
 #include "Log.h"
 
 template <typename T>
 struct conn_ptr_compare {
 public:
-	typedef boost::shared_ptr<T> conn_ptr;
+	typedef std::shared_ptr<T> ConnPtr;
 
-    bool operator() (const conn_ptr& lhs,
-                     const conn_ptr& rhs) const {
+    bool operator() (const ConnPtr& lhs,
+                       const ConnPtr& rhs) const {
         return (lhs.get() < rhs.get());
     }
 };
 
 template <typename T, typename Helper>
 class ConnPool: public boost::noncopyable,
-			    public boost::enable_shared_from_this<ConnPool<T, Helper> >
+			      public std::enable_shared_from_this<ConnPool<T, Helper> >
 {
 public:
-	typedef boost::shared_ptr<T> conn_ptr;
-	typedef boost::weak_ptr<T>   conn_weak_ptr;
-	typedef std::set<conn_ptr, conn_ptr_compare<T> > ConnContainer;
+	typedef std::shared_ptr<T> ConnPtr;
+	typedef std::weak_ptr<T>   ConnWeakPtr;
+	typedef std::set<ConnPtr, conn_ptr_compare<T> > ConnContainer;
 
 public:
     explicit ConnPool(std::string pool_name, size_t capacity, Helper helper):
@@ -51,7 +49,7 @@ public:
 	}
 
 	bool init() {
-		conn_pool_stats_timer_id_ = ServiceManager::instance().timer_service_ptr_->register_timer_task(
+		conn_pool_stats_timer_id_ = TimerService::instance().register_timer_task(
 				boost::bind(&ConnPool::show_conn_pool_stats, this->shared_from_this()), 60 * 1000/* 60s */, true, true);
 		if (conn_pool_stats_timer_id_ == 0) {
 			log_err("Register conn_pool_stats_timer failed! ");
@@ -62,7 +60,7 @@ public:
 	}
 
     // 由于会返回nullptr，所以不能返回引用
-    conn_ptr request_conn() {
+    ConnPtr request_conn() {
 
 		boost::unique_lock<boost::mutex> lock(conn_notify_mutex_);
 
@@ -73,10 +71,10 @@ public:
 		return do_request_conn();
 	}
 
-    conn_ptr try_request_conn(size_t msec)  {
+    ConnPtr try_request_conn(size_t msec)  {
 
 		boost::unique_lock<boost::mutex> lock(conn_notify_mutex_);
-		conn_ptr conn;
+		ConnPtr conn;
 
 		if (!do_check_available() && !msec)
 			return conn; // nullptr
@@ -90,7 +88,7 @@ public:
 		return conn;
 	}
 
-    bool request_scoped_conn(conn_ptr& scope_conn) {
+    bool request_scoped_conn(ConnPtr& scope_conn) {
 
 		// reset first, all will stack at reset latter...
 		// probably recursive require conn_nofity_mutex problem
@@ -102,7 +100,7 @@ public:
 			conn_notify_.wait(lock);
 		}
 
-		conn_ptr conn = do_request_conn();
+		ConnPtr conn = do_request_conn();
 		if (conn) {
 			scope_conn.reset(conn.get(),
 							 boost::bind(&ConnPool::free_conn,
@@ -114,7 +112,7 @@ public:
 		return false;
 	}
 
-    void free_conn(conn_ptr conn) {
+    void free_conn(ConnPtr conn) {
 
 		{
 			boost::lock_guard<boost::mutex> lock(conn_notify_mutex_);
@@ -133,14 +131,16 @@ public:
     size_t get_conn_capacity() const { return capacity_; }
 
     ~ConnPool() {
-		ServiceManager::instance().timer_service_ptr_->revoke_timer_task(conn_pool_stats_timer_id_);
+
+		TimerService::instance().revoke_timer_task(conn_pool_stats_timer_id_);
+
 	}
 
 private:
 
-    conn_ptr do_request_conn() {
+    ConnPtr do_request_conn() {
 
-		conn_ptr conn;
+		ConnPtr conn;
 		++ acquired_count_;
 
 		if (!conns_idle_.empty()){
@@ -153,9 +153,9 @@ private:
 
 		if ( (conns_idle_.size() + conns_busy_.size()) < capacity_) {
 
-			conn_ptr new_conn = boost::make_shared<T>(*this);
+			ConnPtr new_conn = std::make_shared<T>(*this);
 			if (!new_conn){
-				log_err("Creating new Conn failed!");
+				log_err("creating new Conn failed!");
 				return new_conn;
 			}
 
@@ -191,8 +191,8 @@ private:
 
 	const Helper helper_;
 
-    std::set<conn_ptr, conn_ptr_compare<T> > conns_busy_;
-    std::deque<conn_ptr> conns_idle_;
+    std::set<ConnPtr, conn_ptr_compare<T> > conns_busy_;
+    std::deque<ConnPtr> conns_idle_;
 
 	int64_t conn_pool_stats_timer_id_;
 	void show_conn_pool_stats() {

@@ -1,5 +1,6 @@
 #include <cstdlib>
 
+#include <memory>
 #include <string>
 #include <map>
 
@@ -10,23 +11,23 @@
 #include "RedisData.h"
 #include "TransProcessTask.h"
 
-#include "ServiceManager.h"
+#include "SrvManager.h"
 
 // 在主线程中最先初始化，所以不考虑竞争条件问题
-ServiceManager& ServiceManager::instance() {
-	static ServiceManager service;
+SrvManager& SrvManager::instance() {
+	static SrvManager service;
 	return service;
 }
 
-ServiceManager::ServiceManager():
+SrvManager::SrvManager():
     initialized_(false){
 }
 
 
-bool ServiceManager::init() {
+bool SrvManager::init() {
 
     if (initialized_) {
-        log_err("ServiceManager already initlialized...");
+        log_err("SrvManager already initlialized...");
         return false;
     }
 
@@ -35,10 +36,11 @@ bool ServiceManager::init() {
         return false;
 	}
 
-	RedisData::instance();
+	(void)RedisData::instance();
+	(void)TimerService::instance();
 
-	timer_service_ptr_.reset(new TimerService());
-	if (!timer_service_ptr_ || !timer_service_ptr_->init()) {
+
+	if (!TimerService::instance().init()) {
 		log_err("Init TimerService failed!");
 		return false;
 	}
@@ -121,31 +123,31 @@ bool ServiceManager::init() {
     }
 
 	// start work
-	timer_service_ptr_->start_timer();
+	TimerService::instance().start_timer();
     http_server_ptr_->io_service_threads_.start_threads();
-	http_server_ptr_->net_conn_remove_threads_.start_threads();
+	http_server_ptr_->conn_remove_threads_.start_threads();
 
 	// business attached
 	trans_process_ptr_->trans_process_task_.start_threads();
 
-	log_info("ServiceManager all initialized...");
+	log_info("SrvManager all initialized...");
     initialized_ = true;
 
 	return true;
 }
 
 
-bool ServiceManager::service_graceful() {
+bool SrvManager::service_graceful() {
 
 	http_server_ptr_->io_service_stop_graceful();
-	http_server_ptr_->net_conn_remove_stop_graceful();
-	timer_service_ptr_->stop_graceful();
+	http_server_ptr_->conn_remove_stop_graceful();
+	TimerService::instance().stop_graceful();
 	log_info("timer_service_ graceful finished!");
 
 	return true;
 }
 
-void ServiceManager::service_terminate() {
+void SrvManager::service_terminate() {
 	::sleep(1);
 	::_exit(0);
 }
@@ -153,7 +155,7 @@ void ServiceManager::service_terminate() {
 
 extern volatile bool TiBANK_SHUTDOWN;
 
-bool ServiceManager::service_joinall() {
+bool SrvManager::service_joinall() {
 
     while (!TiBANK_SHUTDOWN){
         ::sleep(5);

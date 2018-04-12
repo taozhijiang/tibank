@@ -1,33 +1,31 @@
-#ifndef _TiBANK_NET_CONN_H_
-#define _TiBANK_NET_CONN_H_
-
+#ifndef _TiBANK_TCP_CONN_ASYNC_H_
+#define _TiBANK_TCP_CONN_ASYNC_H_
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 using namespace boost::posix_time;
 using namespace boost::gregorian;
 
-#include <boost/enable_shared_from_this.hpp>
 #include <boost/noncopyable.hpp>
 
 #include "ConnIf.h"
 #include "HttpParser.h"
 #include "Log.h"
 
-class NetConn;
-typedef boost::shared_ptr<NetConn> net_conn_ptr;
-typedef boost::weak_ptr<NetConn>   net_conn_weak;
+class TCPConnAsync;
+typedef std::shared_ptr<TCPConnAsync> NetConnPtr;
+typedef std::weak_ptr<TCPConnAsync>   NetConnWeakPtr;
 
 
 class HttpServer;
-class NetConn: public ConnIf, public boost::noncopyable,
-               public boost::enable_shared_from_this<NetConn> {
+class TCPConnAsync: public ConnIf, public boost::noncopyable,
+                    public std::enable_shared_from_this<TCPConnAsync> {
 
 public:
 
     /// Construct a connection with the given socket.
-    NetConn(boost::shared_ptr<ip::tcp::socket> sock_ptr, HttpServer& server);
+    TCPConnAsync(std::shared_ptr<ip::tcp::socket> p_socket, HttpServer& server);
 
-    virtual ~NetConn() {
+    virtual ~TCPConnAsync() {
 		// log_debug("NET CONN SOCKET RELEASED!!!");
 	}
 
@@ -77,7 +75,7 @@ private:
     // is no possibility of concurrent execution of the handlers. This is an implicit strand.
 
     // Strand to ensure the connection's handlers are not called concurrently. ???
-    boost::shared_ptr<io_service::strand> strand_;
+    std::shared_ptr<io_service::strand> strand_;
 
 private:
     // 读写的有效负载记录
@@ -86,8 +84,8 @@ private:
     size_t w_size_; // 有效负载的末尾
     size_t w_pos_;  //写可能会一次不能完全发送，这里保存已写的位置
 
-    boost::shared_ptr<std::vector<char> > p_buffer_;
-    boost::shared_ptr<std::vector<char> > p_write_;
+    std::shared_ptr<std::vector<char> > p_buffer_;
+    std::shared_ptr<std::vector<char> > p_write_;
 
     bool send_buff_empty() {
         return (w_size_ == 0 || (w_pos_ >= w_size_) );
@@ -95,4 +93,4 @@ private:
 };
 
 
-#endif //_TiBANK_NET_CONN_H_
+#endif //_TiBANK_TCP_CONN_ASYNC_H_

@@ -1,8 +1,7 @@
-#include "SqlConn.h"
-
 #include <sstream>
 
-#include <boost/scoped_ptr.hpp>
+#include "SqlConn.h"
+
 
 SqlConn::SqlConn(ConnPool<SqlConn, SqlConnPoolHelper>& pool):
     driver_(),

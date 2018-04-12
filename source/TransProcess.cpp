@@ -5,7 +5,7 @@
 #include "TransProcess.h"
 #include "TransProcessTask.h"
 #include "Log.h"
-#include "ServiceManager.h"
+#include "SrvManager.h"
 
 #include "json/json.h"
 
@@ -161,7 +161,7 @@ int process_trans_submit(const struct trans_submit_request& req, struct trans_su
     ret.trans_status = TransStatus::kTransInProcess;
     ret.trans_err_code = TransErrInfo::kTransNoErr;
 
-    EQueueDataPtr qd = boost::make_shared<EQueueData>(req.merch_id, req.trans_id, req.account_type);
+    EQueueDataPtr qd = std::make_shared<EQueueData>(req.merch_id, req.trans_id, req.account_type);
     creat_trans_process_task(qd);
 
     return 0;

@@ -15,11 +15,13 @@ class SetItem {
 
 public:
     // 返回true表示实际插入了
-	void do_insert(const T& t) { // todo bool return
+    bool do_insert(const T& t) {
 		boost::unique_lock<boost::mutex> lock(lock_);
-		item_.insert(t);
+        auto ret = item_.insert(t);
+		return ret.second;
 	}
 
+	// 返回实际被删除的元素个数
 	size_t do_erase(const T& t) {
 		boost::unique_lock<boost::mutex> lock(lock_);
 		return item_.erase(t);
@@ -76,7 +78,7 @@ public:
 	}
 
 public:
-    void INSERT(const T& t) const {
+    bool INSERT(const T& t) const {
 		size_t index = hash_index_call_(t) & bucket_size_;
         return items_[index].do_insert(t);
 	}

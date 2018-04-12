@@ -5,7 +5,10 @@
 #include <map>
 #include <vector>
 
-#include <boost/shared_ptr.hpp>
+#include "HttpServer.h"
+#include "TCPConnAsync.h"
+
+class HttpServer;
 
 template <typename T, typename Helper>
 class ConnPool;
@@ -16,13 +19,11 @@ class SqlConnPoolHelper;
 class RedisConn;
 class RedisConnPoolHelper;
 
-class TimerService;
-class HttpServer;
 class TransProcessTask;
 
-class ServiceManager {
+class SrvManager {
 public:
-	static ServiceManager& instance();
+	static SrvManager& instance();
 
 public:
     bool init();
@@ -32,16 +33,15 @@ public:
 	void service_terminate();
 
 private:
-	ServiceManager();
+	SrvManager();
 
     bool initialized_;
 
 public:
-	boost::shared_ptr<TimerService> timer_service_ptr_;
-	boost::shared_ptr<HttpServer> http_server_ptr_;
-    boost::shared_ptr<TransProcessTask> trans_process_ptr_;
-    boost::shared_ptr<ConnPool<SqlConn, SqlConnPoolHelper>> sql_pool_ptr_;
-	boost::shared_ptr<ConnPool<RedisConn, RedisConnPoolHelper>> redis_pool_ptr_;
+	std::shared_ptr<HttpServer> http_server_ptr_;
+    std::shared_ptr<TransProcessTask> trans_process_ptr_;
+    std::shared_ptr<ConnPool<SqlConn, SqlConnPoolHelper>> sql_pool_ptr_;
+	std::shared_ptr<ConnPool<RedisConn, RedisConnPoolHelper>> redis_pool_ptr_;
 };
 
 

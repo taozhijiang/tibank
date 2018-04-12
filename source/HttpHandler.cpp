@@ -7,18 +7,17 @@
 
 #include "HttpProto.h"
 #include "HttpHandler.h"
-#include "ServiceManager.h"
+#include "SrvManager.h"
 #include "HttpServer.h"
-
-#include "TransProcess.h"
-#include "SignHelper.h"
 #include "Log.h"
-
+#include "TransProcess.h"
 #include "json/json.h"
 
 namespace http_handler {
 
-int submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
+using namespace http_proto;
+
+int submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
 	Json::Reader reader;
@@ -92,7 +91,7 @@ int submit_handler(const HttpParser& http_parser, const std::string& post_data, 
 #endif
     process_trans_submit(submit_req, submit_ret);
     generate_trans_submit_ret(submit_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret2:
@@ -100,16 +99,16 @@ error_ret2:
     submit_ret.trans_status = TransStatus::kTransSubmitFail;
     submit_ret.trans_err_code = TransErrInfo::kTransNoErr;
     generate_trans_submit_ret(submit_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret:
     response = http_proto::content_error;
-    status = http_proto::status::internal_server_error;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
 	return -1;
 }
 
-int query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
+int query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
 	Json::Reader reader;
@@ -179,23 +178,23 @@ int query_handler(const HttpParser& http_parser, const std::string& post_data, s
 #endif
     process_trans_query(query_req, query_ret);
     generate_trans_query_ret(query_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret2:
     query_ret.trans_response = TransResponseCode::kTransResponseOK;
     query_ret.trans_status = TransStatus::kTransSubmitFail;
     generate_trans_query_ret(query_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret:
     response = http_proto::content_error;
-    status = http_proto::status::internal_server_error;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
 	return -1;
 }
 
-int batch_submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
+int batch_submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
 	Json::Reader reader;
@@ -313,23 +312,23 @@ int batch_submit_handler(const HttpParser& http_parser, const std::string& post_
 
 
     generate_trans_batch_submit_ret(batch_submit_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret2:
     batch_submit_ret.trans_response = TransResponseCode::kTransResponseOK;
     batch_submit_ret.trans_status = TransStatus::kTransSubmitFail;
     generate_trans_batch_submit_ret(batch_submit_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret:
     response = http_proto::content_error;
-    status = http_proto::status::internal_server_error;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
 	return -1;
 }
 
-int batch_query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status) {
+int batch_query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
 	Json::Reader reader;
@@ -438,46 +437,47 @@ int batch_query_handler(const HttpParser& http_parser, const std::string& post_d
 
 
     generate_trans_batch_query_ret(batch_query_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret2:
     batch_query_ret.trans_response = TransResponseCode::kTransResponseFail;
     generate_trans_batch_query_ret(batch_query_ret, response);
-    status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
     return 0;
 
 error_ret:
     response = http_proto::content_error;
-    status = http_proto::status::internal_server_error;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
 	return -1;
 
 }
 
 
 static const std::string& get_document_root() {
-	return ServiceManager::instance().http_server_ptr_->get_document_root();
+    return SrvManager::instance().http_server_ptr_->get_document_root();
 }
 
 static const std::vector<std::string>& get_document_index() {
-	return ServiceManager::instance().http_server_ptr_->get_document_index();
+    return SrvManager::instance().http_server_ptr_->get_document_index();
 }
 
-static bool check_and_sendfile(std::string regular_file_path, std::string& response, string& status) {
+static bool check_and_sendfile(const HttpParser& http_parser, std::string regular_file_path,
+                                   std::string& response, string& status_line) {
 
 	// check dest is directory or regular?
 	struct stat sb;
 	if (stat(regular_file_path.c_str(), &sb) == -1) {
 		log_err("Stat file error: %s", regular_file_path.c_str());
 		response = http_proto::content_error;
-		status = http_proto::status::internal_server_error;
+        status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
 		return false;
 	}
 
 	if (sb.st_size > 100*1024*1024 /*100M*/) {
 		log_err("Too big file size: %ld", sb.st_size);
 		response = http_proto::content_bad_request;
-		status = http_proto::status::bad_request;
+        status_line = generate_response_status_line(http_parser.get_version(), StatusCode::client_error_bad_request);
 		return false;
 	}
 
@@ -486,13 +486,13 @@ static bool check_and_sendfile(std::string regular_file_path, std::string& respo
 	std::stringstream buffer;
 	buffer << fin.rdbuf();
 	response = buffer.str();
-	status = http_proto::status::ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
 
 	return true;
 }
 
 
-int default_http_get_handler(const HttpParser& http_parser, std::string& response, string& status) {
+int default_http_get_handler(const HttpParser& http_parser, std::string& response, string& status_line) {
 
 	const UriParamContainer& params = http_parser.get_request_uri_params();
 	if (!params.EMPTY()) {
@@ -505,7 +505,7 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 	if (::access(real_file_path.c_str(), R_OK) != 0) {
 		log_err("File not found: %s", real_file_path.c_str());
 		response = http_proto::content_not_found;
-		status = http_proto::status::not_found;
+        status_line = generate_response_status_line(http_parser.get_version(), StatusCode::client_error_not_found);
 		return -1;
 	}
 
@@ -514,13 +514,13 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 	if (stat(real_file_path.c_str(), &sb) == -1) {
 		log_err("Stat file error: %s", real_file_path.c_str());
 		response = http_proto::content_error;
-		status = http_proto::status::internal_server_error;
+        status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
 		return -1;
 	}
 
 	switch (sb.st_mode & S_IFMT) {
 		case S_IFREG:
-			check_and_sendfile(real_file_path, response, status);
+            check_and_sendfile(http_parser, real_file_path, response, status_line);
 			break;
 
 		case S_IFDIR:
@@ -530,7 +530,7 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 				for (std::vector<std::string>::const_iterator iter = indexes.cbegin(); iter != indexes.cend(); ++iter) {
 					std::string file_path = real_file_path + "/" + *iter;
 					log_info("Trying: %s", file_path.c_str());
-					if (check_and_sendfile(file_path, response, status)) {
+                    if (check_and_sendfile(http_parser, file_path, response, status_line)) {
 						OK = true;
 						break;
 					}
@@ -539,7 +539,7 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 				if (!OK) {
 					// default, 404
 					response = http_proto::content_not_found;
-					status = http_proto::status::not_found;
+                    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
 				}
 			}
 			break;

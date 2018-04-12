@@ -1,6 +1,6 @@
 #include <execinfo.h>
 
-#include "TiGeneral.h"
+#include "General.h"
 #include "Utils.h"
 
 static void backtrace_info(int sig, siginfo_t *info, void *f) {
