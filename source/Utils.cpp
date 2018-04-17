@@ -68,12 +68,12 @@ libconfig::Config& get_config_object() {
     return cfg;
 }
 
-bool sys_config_init() {
+bool sys_config_init(const std::string& config_file) {
 
     libconfig::Config& cfg = get_config_object();
 
     try {
-        cfg.readFile("tibank.conf");
+        cfg.readFile(config_file.c_str());
     } catch(libconfig::FileIOException &fioex) {
         log_err("I/O error while reading file.");
         return false;

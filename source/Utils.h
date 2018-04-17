@@ -46,7 +46,7 @@ static inline bool request_scoped_redis_conn(redis_conn_ptr& conn) {
 
 #include <libconfig.h++>
 
-bool sys_config_init();
+bool sys_config_init(const std::string& config_file);
 libconfig::Config& get_config_object();
 
 template <typename T>
