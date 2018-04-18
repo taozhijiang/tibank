@@ -4,3 +4,5 @@ tibank.vpw
 tibank.vpwhist
 tibank.vpwhistu
 tibank.vtg
+.DS_Store
+include/config.h
