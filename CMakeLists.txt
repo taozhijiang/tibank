@@ -6,8 +6,8 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG   "$ENV{CXXFLAGS} -O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O2 ")
 
-set (NETASK_VERSION_MAJOR 0)
-set (NETASK_VERSION_MINOR 85)
+set (TIBANK_VERSION_MAJOR 1)
+set (TIBANK_VERSION_MINOR 0)
 configure_file (
   "include/config.h.in"
   "../include/config.h" )
