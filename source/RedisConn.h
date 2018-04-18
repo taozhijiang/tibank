@@ -7,6 +7,7 @@
 
 #include <boost/thread/mutex.hpp>
 #include "ConnPool.h"
+#include "ConnWrap.h"
 
 class RedisConn;
 typedef std::shared_ptr<RedisConn> redis_conn_ptr;
@@ -25,10 +26,11 @@ public:
 
 typedef std::shared_ptr<redisReply> redisReply_ptr;
 
-class RedisConn: public boost::noncopyable {
+class RedisConn: public ConnWrap,
+	               public boost::noncopyable {
 public:
     explicit RedisConn(ConnPool<RedisConn, RedisConnPoolHelper>& pool):
-		pool_(pool), conn_uuid_(0) {
+		conn_uuid_(0), pool_(pool) {
 	}
 
     ~RedisConn(){

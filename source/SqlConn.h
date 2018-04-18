@@ -15,6 +15,7 @@
 
 #include "Log.h"
 #include "ConnPool.h"
+#include "ConnWrap.h"
 
 class SqlConn;
 typedef std::shared_ptr<SqlConn> sql_conn_ptr;
@@ -91,7 +92,8 @@ bool cast_raw_value(shared_result_ptr result, const uint32_t idx, T& val, Args& 
 
 
 
-class SqlConn: public boost::noncopyable {
+class SqlConn: public ConnWrap,
+	             public boost::noncopyable {
 public:
     explicit SqlConn(ConnPool<SqlConn, SqlConnPoolHelper>& pool);
     ~SqlConn();

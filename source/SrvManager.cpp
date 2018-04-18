@@ -65,7 +65,7 @@ bool SrvManager::init() {
 
 	SqlConnPoolHelper helper(mysql_hostname, mysql_port,
 						     mysql_username, mysql_passwd, mysql_database);
-    sql_pool_ptr_.reset(new ConnPool<SqlConn, SqlConnPoolHelper>("MySQLPool", conn_pool_size, helper));
+    sql_pool_ptr_.reset(new ConnPool<SqlConn, SqlConnPoolHelper>("MySQLPool", conn_pool_size, helper, 60 /*60s*/));
 	if (!sql_pool_ptr_ || !sql_pool_ptr_->init()) {
 		log_err("Init SqlConnPool failed!");
 		return false;
@@ -86,7 +86,7 @@ bool SrvManager::init() {
 	}
 
 	RedisConnPoolHelper redis_helper(redis_hostname, redis_port, redis_passwd);
-    redis_pool_ptr_.reset(new ConnPool<RedisConn, RedisConnPoolHelper>("RedisPool", redis_pool_size, redis_helper));
+    redis_pool_ptr_.reset(new ConnPool<RedisConn, RedisConnPoolHelper>("RedisPool", redis_pool_size, redis_helper, 60 /*60s*/));
 	if (!redis_pool_ptr_ || !redis_pool_ptr_->init()) {
 		log_err("Init RedisConnPool failed!");
 		return false;
@@ -110,7 +110,7 @@ bool SrvManager::init() {
 	}
 	log_info("listen at: %s:%d, doc:%s, thread_pool: %d", listen_addr.c_str(), listen_port,
 														   doc_root.c_str(), thread_pool_size);
-    http_server_ptr_.reset(new HttpServer(listen_addr, listen_port, thread_pool_size, doc_root));
+    http_server_ptr_.reset(new HttpServer(listen_addr, static_cast<unsigned short>(listen_port), thread_pool_size, doc_root));
 	if (!http_server_ptr_ || !http_server_ptr_->init()) {
 		log_err("Init HttpServer failed!");
 		return false;
