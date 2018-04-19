@@ -15,6 +15,7 @@
 
 #include "Log.h"
 #include "ConnPool.h"
+#include "ConnWrap.h"
 
 class SqlConn;
 typedef std::shared_ptr<SqlConn> sql_conn_ptr;
@@ -91,16 +92,13 @@ bool cast_raw_value(shared_result_ptr result, const uint32_t idx, T& val, Args& 
 
 
 
-class SqlConn: public boost::noncopyable {
+class SqlConn: public ConnWrap,
+	             public boost::noncopyable {
 public:
     explicit SqlConn(ConnPool<SqlConn, SqlConnPoolHelper>& pool);
     ~SqlConn();
 
 	bool init(int64_t conn_uuid, const SqlConnPoolHelper& helper);
-
-    void set_uuid(int64_t uuid) { conn_uuid_ = uuid; }
-    int64_t get_uuid() { return conn_uuid_; }
-
 
     // Simple SQL API
     bool sqlconn_execute(const string& sql);
@@ -122,7 +120,6 @@ public:
 private:
     sql::Driver* driver_;   /* no need explicit free */
 
-    int64_t  conn_uuid_;   // reinterpret_cast
     std::unique_ptr<sql::Connection> conn_;
     std::unique_ptr<sql::Statement> stmt_;
 

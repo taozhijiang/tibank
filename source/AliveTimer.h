@@ -35,24 +35,24 @@ private:
 template<typename T>
 class AliveTimer {
 public:
-    typedef std::shared_ptr<AliveItem<T> >             active_item_ptr;
-    typedef std::map<time_t, std::set<active_item_ptr> > TimeContainer;       // 以秒为单位
-    typedef std::map<T*, active_item_ptr >               BucketContainer;     // 通过shared_ptr vs T*的关系，建立两个容器的链接
-    typedef boost::function<int(std::shared_ptr<T>)>   ExpiredHandler;
+    typedef std::shared_ptr<AliveItem<T> >               active_item_ptr;
+    typedef std::map<time_t, std::set<active_item_ptr> > TimeContainer;       //
+    typedef std::map<T*, active_item_ptr >               BucketContainer;     //
+    typedef boost::function<int(std::shared_ptr<T>)>     ExpiredHandler;
 
 public:
 
     explicit AliveTimer(time_t time_out = 10*60, time_t time_linger = 30):
-        func_(), lock_(), time_items_(), bucket_items_(),
+        lock_(), time_items_(), bucket_items_(), func_(),
         time_out_(time_out), time_linger_(time_linger) {
         initialized_ = false;
-	}
+	 }
 
-	explicit AliveTimer(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30):
-        func_(func), lock_(), time_items_(), bucket_items_(),
+	 explicit AliveTimer(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30):
+        lock_(), time_items_(), bucket_items_(), func_(func),
         time_out_(time_out), time_linger_(time_linger) {
         initialized_ = true;
-	}
+	 }
 
     bool init(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30) {
         func_ = func;
@@ -63,23 +63,22 @@ public:
         return true;
     }
 
-	~AliveTimer(){
-	}
+	 ~AliveTimer(){}
 
     bool touch(std::shared_ptr<T> ptr) {
         time_t tm = ::time(NULL) + time_out_;
         return touch(ptr, tm);
-	}
+	 }
 
-	bool touch(std::shared_ptr<T> ptr, time_t tm) {
-		boost::unique_lock<boost::mutex> lock(lock_);
+    bool touch(std::shared_ptr<T> ptr, time_t tm) {
+        boost::unique_lock<boost::mutex> lock(lock_);
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter == bucket_items_.end()) {
-			log_err("touched item not found!");
-			return false;
-		}
+            log_err("touched item not found!");
+            return false;
+        }
 
-		time_t before = iter->second->get_expire_time();
+        time_t before = iter->second->get_expire_time();
         if (tm - before < time_linger_){
             log_debug("Linger optimize: %ld, %ld", tm, before);
             return true;
@@ -93,7 +92,7 @@ public:
 
         if (time_items_.find(tm) == time_items_.end()) {
             time_items_[tm] = std::set<active_item_ptr>();  // create new time bucket
-		}
+        }
 
         time_items_[tm].insert(iter->second);
         time_items_[before].erase(iter->second);
@@ -106,16 +105,16 @@ public:
         return insert(ptr, tm);
     }
 
-	bool insert(std::shared_ptr<T> ptr, time_t tm ) {
-		boost::unique_lock<boost::mutex> lock(lock_);
+    bool insert(std::shared_ptr<T> ptr, time_t tm ) {
+        boost::unique_lock<boost::mutex> lock(lock_);
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter != bucket_items_.end()) {
-			log_err("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
-                            iter->second->get_raw_ptr());
-			return false;
-		}
+		log_err("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
+                           iter->second->get_raw_ptr());
+		return false;
+        }
 
-		active_item_ptr alive_item = std::make_shared<AliveItem<T> >(tm, ptr);
+        active_item_ptr alive_item = std::make_shared<AliveItem<T> >(tm, ptr);
         if (!alive_item){
             log_err("Create AliveItem failed!");
             return false;
@@ -125,12 +124,12 @@ public:
 
         if (time_items_.find(tm) == time_items_.end()) {
             time_items_[tm] = std::set<active_item_ptr>();
-		}
+        }
         time_items_[tm].insert(alive_item);
 
         log_debug("inserted: %p, %ld", ptr.get(), tm);
-		return true;
-	}
+        return true;
+    }
 
     bool clean_up() {
 
@@ -141,7 +140,7 @@ public:
         }
 
         time_t now = ::time(NULL);
-		boost::unique_lock<boost::mutex> lock(lock_);
+        boost::unique_lock<boost::mutex> lock(lock_);
         typename TimeContainer::iterator iter = time_items_.begin();
         typename TimeContainer::iterator remove_iter = time_items_.end();
         for ( ; iter != time_items_.end(); ){
@@ -185,14 +184,14 @@ public:
     }
 
 private:
-	mutable boost::mutex lock_;
+    bool initialized_;
+    mutable boost::mutex lock_;
     TimeContainer   time_items_;
     BucketContainer bucket_items_;
-    ExpiredHandler func_;
-    bool initialized_;
+    ExpiredHandler  func_;
 
-	time_t time_out_;
-	time_t time_linger_;
+    time_t time_out_;
+    time_t time_linger_;
 };
 
 

@@ -79,6 +79,7 @@ public:
 	int conn_add(ConnTypePtr p_conn) {
 		conns_.INSERT(p_conn);
         conns_alive_.insert(p_conn);
+		return 0;
 	}
 
     void conn_touch(ConnTypePtr p_conn) {
@@ -87,6 +88,7 @@ public:
 
 	int conn_pend_remove(ConnTypePtr p_conn) {
 		pending_to_remove_.PUSH(ConnTypeWeakPtr(p_conn));
+		return 0;
 	}
 
 	ThreadPool conn_remove_threads_;

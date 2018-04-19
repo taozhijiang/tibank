@@ -51,6 +51,27 @@ static void init_signal_handle(){
     return;
 }
 
+static void show_vcs_info () {
+
+
+    std::cout << " THIS RELEASE OF TiBANK " << std::endl;
+    std::cout << "      VERSION: "  << tibank_VERSION_MAJOR << "." << tibank_VERSION_MINOR << "." << tibank_VERSION_PATCH << std::endl;
+
+    extern const char *build_commit_version;
+    extern const char *build_commit_branch;
+    extern const char *build_commit_date;
+    extern const char *build_commit_author;
+    extern const char *build_time;
+
+    std::cout << build_commit_version << std::endl;
+    std::cout << build_commit_branch << std::endl;
+    std::cout << build_commit_date << std::endl;
+    std::cout << build_commit_author << std::endl;
+    std::cout << build_time << std::endl;
+
+    return;
+}
+
 
 // /var/run/[program_invocation_short_name].pid --> root permission
 static int create_process_pid() {
@@ -75,14 +96,9 @@ static int create_process_pid() {
 
 int main(int argc, char* argv[]) {
 
-    std::cout << " THIS CURRENT RELEASE OF TiBANK " << std::endl;
-    std::cout << "      VERSION: "  << tibank_VERSION_MAJOR << "." << tibank_VERSION_MINOR << std::endl;
+	show_vcs_info();
 
-	std::string config_file = "tibank.conf";
-	if (argc > 1) {
-		config_file = std::string(argv[2]);
-	}
-
+    std::string config_file = "tibank.conf";
 	if (!sys_config_init(config_file)) {
 		std::cout << "Handle system configure failed!" << std::endl;
 		return -1;

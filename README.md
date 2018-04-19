@@ -1,1 +1,1 @@
-虚拟渠道TiBank
+虚拟银行渠道TiBank

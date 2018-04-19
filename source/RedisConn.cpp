@@ -9,9 +9,9 @@
 
 bool RedisConn::init(int64_t conn_uuid, const RedisConnPoolHelper& helper) {
 
-	conn_uuid_ = conn_uuid;
+    set_uuid(conn_uuid);
 
-	struct timeval tv;
+    struct timeval tv {};
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	context_.reset(redisConnectWithTimeout(helper.host_.c_str(), helper.port_, tv),  redisFree);

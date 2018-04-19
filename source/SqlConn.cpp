@@ -5,7 +5,6 @@
 
 SqlConn::SqlConn(ConnPool<SqlConn, SqlConnPoolHelper>& pool):
     driver_(),
-    conn_uuid_(0),
     stmt_(),
     pool_(pool) {
 }
@@ -14,7 +13,7 @@ bool SqlConn::init(int64_t conn_uuid,  const SqlConnPoolHelper& helper) {
 
     try {
 
-        conn_uuid_ = conn_uuid;
+        set_uuid(conn_uuid);
         driver_ = get_driver_instance(); // not thread safe!!!
 
         std::stringstream output;
@@ -55,7 +54,7 @@ SqlConn::~SqlConn() {
     conn_.reset();
     stmt_.reset();
 
-    log_info("Destruct Connection %ld OK!", conn_uuid_);
+    log_info("Destruct Connection %ld OK!", get_uuid());
 }
 
 bool SqlConn::sqlconn_execute(const string& sql) {

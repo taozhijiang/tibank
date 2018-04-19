@@ -23,11 +23,11 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c
     acceptor_(io_service_, ep_),
 	docu_root_(docu_root),
 	docu_index_({"index.html", "index.htm", "index.xhtml"}),
-    io_service_threads_(c_cz),
     conns_(bucket_size_, bucket_hash_index_call),
 	pending_to_remove_(),
 	conns_alive_(),
-	conn_remove_threads_(1) {
+	conn_remove_threads_(1),
+    io_service_threads_(static_cast<uint8_t>(c_cz)) {
 
     acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
     acceptor_.listen();

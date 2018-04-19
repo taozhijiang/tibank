@@ -30,7 +30,7 @@ void Log::log_api(int priority, const char *file, int line, const char *func, co
 	// 如果原本发送，则接收端是#开头的编码字符，如果转移，根据协议换行意味着消息的结束，消息会丢失
 	// 这种情况下，将消息拆分然后分别发送
 
-    n = strlen(buf);
+    n = static_cast<int>(strlen(buf));
 	if (likely(std::find(buf, buf + n, '\n') == (buf + n))) {
         buf[n] = '\n';   // 兼容老的pbi_log_service
 		::syslog(priority, "%s", buf);
