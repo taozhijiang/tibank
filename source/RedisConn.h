@@ -30,16 +30,13 @@ class RedisConn: public ConnWrap,
 	               public boost::noncopyable {
 public:
     explicit RedisConn(ConnPool<RedisConn, RedisConnPoolHelper>& pool):
-		conn_uuid_(0), pool_(pool) {
+        pool_(pool) {
 	}
 
     ~RedisConn(){
 	}
 
 	bool init(int64_t conn_uuid, const RedisConnPoolHelper& helper);
-
-    void set_uuid(int64_t uuid) { conn_uuid_ = uuid; }
-    int64_t get_uuid() { return conn_uuid_; }
 
 	redisReply_ptr exec(const char *format, ...);
 	redisReply_ptr exec(int argc, const char **argv);
@@ -50,7 +47,6 @@ public:
 	operator bool();
 
 private:
-	int64_t  conn_uuid_;   // reinterpret_cast
 	std::shared_ptr<redisContext> context_;
 
     // may be used in future

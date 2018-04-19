@@ -7,7 +7,7 @@
 class ConnWrap {
 public:
     ConnWrap():
-		start_({}), count_(0)
+        start_({}), count_(0), conn_uuid_(0)
 	{}
 
     ~ConnWrap() {}
@@ -31,17 +31,22 @@ public:
 
 	bool wrap_conn_expired(time_t now, time_t live_sec) {
 		if (now - start_.tv_sec > live_sec) {
-			log_info("use count: %ld, now: %lu, last_time: %lu, linger: %dsec",
-										  count_, now, start_.tv_sec, live_sec);
+            log_info("use count: %ld, now: %lu, last_time: %lu, linger: %dsec", count_, now, start_.tv_sec, live_sec);
 			return true;
 		}
 
 		return false;
 	}
 
+
+    void set_uuid(int64_t uuid) { conn_uuid_ = uuid; }
+    int64_t get_uuid() { return conn_uuid_; }
+
+
 private:
 	struct timeval start_; // 每次请求的时候更新
 	int64_t        count_;
+    int64_t          conn_uuid_;   // reinterpret_cast
 };
 
 

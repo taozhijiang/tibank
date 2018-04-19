@@ -100,10 +100,6 @@ public:
 
 	bool init(int64_t conn_uuid, const SqlConnPoolHelper& helper);
 
-    void set_uuid(int64_t uuid) { conn_uuid_ = uuid; }
-    int64_t get_uuid() { return conn_uuid_; }
-
-
     // Simple SQL API
     bool sqlconn_execute(const string& sql);
     sql::ResultSet* sqlconn_execute_query(const string& sql);
@@ -124,7 +120,6 @@ public:
 private:
     sql::Driver* driver_;   /* no need explicit free */
 
-    int64_t  conn_uuid_;   // reinterpret_cast
     std::unique_ptr<sql::Connection> conn_;
     std::unique_ptr<sql::Statement> stmt_;
 

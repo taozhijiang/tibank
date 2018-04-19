@@ -10,13 +10,13 @@
 template<typename T>
 class AliveItem {
 public:
-    AliveItem(time_t tm, std::shared_ptr<T> t_ptr):
-        time_(tm), raw_ptr_(t_ptr.get()), weak_ptr_(t_ptr) {
-    }
+	AliveItem(time_t tm, std::shared_ptr<T> t_ptr):
+		time_(tm), raw_ptr_(t_ptr.get()), weak_ptr_(t_ptr) {
+	}
 
-    time_t get_expire_time() {
-        return time_;
-    }
+	time_t get_expire_time() {
+		return time_;
+	}
 
     T* get_raw_ptr() {
         return raw_ptr_;
@@ -27,9 +27,9 @@ public:
     }
 
 private:
-    time_t time_;
+	time_t time_;
     T*     raw_ptr_;
-    std::weak_ptr<T> weak_ptr_;
+	std::weak_ptr<T> weak_ptr_;
 };
 
 template<typename T>
@@ -46,13 +46,13 @@ public:
         lock_(), time_items_(), bucket_items_(), func_(),
         time_out_(time_out), time_linger_(time_linger) {
         initialized_ = false;
-    }
+	 }
 
-    explicit AliveTimer(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30):
+	 explicit AliveTimer(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30):
         lock_(), time_items_(), bucket_items_(), func_(func),
         time_out_(time_out), time_linger_(time_linger) {
         initialized_ = true;
-    }
+	 }
 
     bool init(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30) {
         func_ = func;
@@ -63,13 +63,12 @@ public:
         return true;
     }
 
-    ~AliveTimer(){
-    }
+	 ~AliveTimer(){}
 
     bool touch(std::shared_ptr<T> ptr) {
         time_t tm = ::time(NULL) + time_out_;
         return touch(ptr, tm);
-    }
+	 }
 
     bool touch(std::shared_ptr<T> ptr, time_t tm) {
         boost::unique_lock<boost::mutex> lock(lock_);
@@ -99,7 +98,7 @@ public:
         time_items_[before].erase(iter->second);
         log_debug("touched: %p, %ld -> %ld", ptr.get(), before, tm);
         return true;
-    }
+	}
 
     bool insert(std::shared_ptr<T> ptr) {
         time_t tm = ::time(NULL) + time_out_;
@@ -110,9 +109,9 @@ public:
         boost::unique_lock<boost::mutex> lock(lock_);
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter != bucket_items_.end()) {
-            log_err("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
-                            iter->second->get_raw_ptr());
-            return false;
+		log_err("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
+                           iter->second->get_raw_ptr());
+		return false;
         }
 
         active_item_ptr alive_item = std::make_shared<AliveItem<T> >(tm, ptr);
@@ -172,7 +171,7 @@ public:
                 time_items_.erase(remove_iter);
             }
             else {
-                       // time_t 是已经排序了的
+				       // time_t 是已经排序了的
                 break; // all expired clean
             }
         }
@@ -185,11 +184,11 @@ public:
     }
 
 private:
+    bool initialized_;
     mutable boost::mutex lock_;
     TimeContainer   time_items_;
     BucketContainer bucket_items_;
-    ExpiredHandler func_;
-    bool initialized_;
+    ExpiredHandler  func_;
 
     time_t time_out_;
     time_t time_linger_;

@@ -43,7 +43,7 @@ set (EXTRA_LIBS ${EXTRA_LIBS} ssl event config++)
 set (EXTRA_LIBS ${EXTRA_LIBS} pthread hiredis)
 set (EXTRA_LIBS ${EXTRA_LIBS} boost_system boost_thread-mt boost_date_time boost_regex)
 set (EXTRA_LIBS ${EXTRA_LIBS} mysqlcppconn)
-set (EXTRA_LIBS ${EXTRA_LIBS} commonutil json curl )
+set (EXTRA_LIBS ${EXTRA_LIBS} commonutil json curl rabbitmq)
 
 target_link_libraries( tibank ${EXTRA_LIBS} )
 

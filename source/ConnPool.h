@@ -44,13 +44,13 @@ public:
 		helper_(helper), conns_busy_(), conns_idle_(),
 		conn_notify_(), conn_notify_mutex_(),
         acquired_count_(0), acquired_ok_count_(0),
-		hold_time_ms_(1000),
+        hold_time_ms_(512),
     	conn_pool_stats_timer_id_(0),
 		conn_pool_linger_sec_(linger_sec),
 		conn_pool_linger_trim_id_(0) {
 
 		safe_assert(capacity_);
-		log_info( "TOTAL CONN Capacity: %d", capacity_ );
+        log_info( "ConnPool Maxium Capacity: %d", capacity_ );
 		return;
 	}
 
@@ -243,6 +243,8 @@ private:
 		log_debug("%s", output.str().c_str());
 	}
 
+
+private:
 	time_t conn_pool_linger_sec_;   // 秒为单位，超过时长的连接被剔除
 	int64_t conn_pool_linger_trim_id_;
 	void do_conn_pool_linger_trim() {
