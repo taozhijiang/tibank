@@ -284,7 +284,7 @@ private:
 			}
 		}
 
-		log_info("total checked %d conns, trimed %d conns.", count, trim_count);
+		log_info("pool %s, total checked %d conns, trimed %d conns.", pool_name_.c_str(), count, trim_count);
 
 		return;
 	}

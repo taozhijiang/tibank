@@ -79,7 +79,7 @@ void TimerService::timer_defer_run(ThreadObjPtr ptr){
 
 	std::stringstream ss_id;
 	ss_id << boost::this_thread::get_id();
-	log_info("PbiTimerService thread %s is about to work... ", ss_id.str().c_str());
+	log_info("TimerService thread %s is about to work... ", ss_id.str().c_str());
 
 	TimerEventCallable func;
 
@@ -109,7 +109,7 @@ void TimerService::timer_defer_run(ThreadObjPtr ptr){
 	}
 
 	ptr->status_ = ThreadStatus::kThreadDead;
-	log_info("PbiTimerService thread %s is about to terminate ... ", ss_id.str().c_str());
+	log_info("TimerService thread %s is about to terminate ... ", ss_id.str().c_str());
 
 	return;
 }
@@ -119,7 +119,7 @@ int TimerService::start_timer(){
 	timer_thread_ = boost::thread(boost::bind(&TimerService::timer_run, this));
 
 	if (! timer_defer_.init_threads(boost::bind(&TimerService::timer_defer_run, this,_1))) {
-		log_err("PbiTimerService::init failed!");
+		log_err("TimerService::init failed!");
 		return -1;
 	}
 

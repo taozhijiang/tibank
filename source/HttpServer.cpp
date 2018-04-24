@@ -25,7 +25,7 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c
 	docu_index_({"index.html", "index.htm", "index.xhtml"}),
     conns_(bucket_size_, bucket_hash_index_call),
 	pending_to_remove_(),
-	conns_alive_(),
+	conns_alive_("TcpConnAsync"),
 	conn_remove_threads_(1),
     io_service_threads_(static_cast<uint8_t>(c_cz)) {
 
@@ -64,9 +64,11 @@ bool HttpServer::init() {
 	int conn_time_out = 0;
 	int conn_time_linger = 0;
 	if (!get_config_value("http.conn_time_out", conn_time_out) || !get_config_value("http.conn_time_linger", conn_time_linger) ){
-        log_err("Error, get value error");
-        return false;
+        log_err("get http conn configure value error, using default.");
+		conn_time_out = 5 * 60;
+		conn_time_linger = 10;
     }
+
 	log_debug("socket conn time_out: %ds, linger: %ds", conn_time_out, conn_time_linger);
     conns_alive_.init(boost::bind(&HttpServer::conn_pend_remove, this, _1),
 									conn_time_out, conn_time_linger);
@@ -74,10 +76,11 @@ bool HttpServer::init() {
     if (TimerService::instance().register_timer_task(
                                     boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_),
                                     5*1000, true, false) == 0) {
-		log_err("Register alive purge task failed!");
+		log_err("Register alive conn purge task failed!");
 		return false;
 	}
 
+	log_info("HttpServer module intialized ok!");
     return true;
 }
 
@@ -253,14 +256,12 @@ void HttpServer::conn_remove_run(ThreadObjPtr ptr) {
 
 		if (ConnTypePtr shared_conn_ptr = net_conn_weak_ptr.lock()) {
 			if (shared_conn_ptr->get_conn_stat() != ConnStat::kConnError) {
-				log_err("Warning, remove unerror conn: %d", shared_conn_ptr->get_conn_stat());
+				log_notice("Warning, remove unerror conn: %d", shared_conn_ptr->get_conn_stat());
 			}
 
 			// log_debug("do remove ... ");
 			conns_.ERASE(shared_conn_ptr);
 		}
-
-		// log_info("Current net_conns_ size: %ld ", net_conns_.SIZE());
 
     }
 

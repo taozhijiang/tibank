@@ -42,22 +42,42 @@ public:
 
 public:
 
-    explicit AliveTimer(time_t time_out = 10*60, time_t time_linger = 30):
+    explicit AliveTimer(std::string alive_name, time_t time_out = 10*60, time_t time_linger = 30):
+		alive_name_(alive_name),
         lock_(), time_items_(), bucket_items_(), func_(),
         time_out_(time_out), time_linger_(time_linger) {
         initialized_ = false;
 	 }
 
-	 explicit AliveTimer(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30):
+	 explicit AliveTimer(std::string alive_name, ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30):
+		alive_name_(alive_name),
         lock_(), time_items_(), bucket_items_(), func_(func),
         time_out_(time_out), time_linger_(time_linger) {
+
         initialized_ = true;
 	 }
 
-    bool init(ExpiredHandler func, time_t time_out = 10*60, time_t time_linger = 30) {
-        func_ = func;
-        time_out_ = time_out;
-        time_linger_ = time_linger;
+    bool init(ExpiredHandler func) {
+		if (initialized_) {
+			log_err("This AliveTimer %s already initialized, please check!", alive_name_.c_str());
+			return true;
+		}
+
+		func_ = func;
+        initialized_ = true;
+
+        return true;
+    }
+
+	bool init(ExpiredHandler func, time_t time_out, time_t time_linger) {
+		if (initialized_) {
+			log_err("This AliveTimer %s already initialized, please check!", alive_name_.c_str());
+			return true;
+		}
+
+		func_ = func;
+		time_out_ = time_out;
+		time_linger_ = time_linger;
         initialized_ = true;
 
         return true;
@@ -133,18 +153,22 @@ public:
 
     bool clean_up() {
 
-        // log_debug("clean_up check ... ");
         if (!initialized_) {
             log_err("not initialized, please check ...");
             return false;
         }
 
-        time_t now = ::time(NULL);
         boost::unique_lock<boost::mutex> lock(lock_);
+
+		struct timeval checked_start;
+		::gettimeofday(&checked_start, NULL);
+		int checked_count = 0;
+        time_t current_sec = ::time(NULL);
+
         typename TimeContainer::iterator iter = time_items_.begin();
         typename TimeContainer::iterator remove_iter = time_items_.end();
         for ( ; iter != time_items_.end(); ){
-            if (iter->first < now) {
+            if (iter->first < current_sec) {
                 typename std::set<active_item_ptr>::iterator it = iter->second.begin();
                 for (; it != iter->second.end(); ++it) {
                     T* p = (*it)->get_raw_ptr();
@@ -166,7 +190,7 @@ public:
                 // (Old style) References and iterators to the erased elements are invalidated.
                 // Other references and iterators are not affected.
 
-                log_debug("expire entry remove: %ld, now:%ld count:%ld", iter->first, now, iter->second.size());
+                log_debug("expire entry remove: %ld, now:%ld count:%ld", iter->first, current_sec, iter->second.size());
                 remove_iter = iter ++;
                 time_items_.erase(remove_iter);
             }
@@ -174,6 +198,17 @@ public:
 				       // time_t 是已经排序了的
                 break; // all expired clean
             }
+
+			++ checked_count;
+			if ((checked_count % 10) == 0) {  // 不能卡顿太长时间，否则正常的请求会被卡死
+				struct timeval checked_now;
+				::gettimeofday(&checked_now, NULL);
+				int64_t elapse_ms = ( 1000000 * ( checked_now.tv_sec - checked_start.tv_sec ) + checked_now.tv_usec - checked_start.tv_usec ) / 1000;
+				if (elapse_ms > 15) {
+					log_notice("check works too long elapse time: %ld ms, break now", elapse_ms);
+					break;
+				}
+			}
         }
 
         int64_t total_count = 0;
@@ -185,6 +220,7 @@ public:
 
 private:
     bool initialized_;
+	std::string     alive_name_;
     mutable boost::mutex lock_;
     TimeContainer   time_items_;
     BucketContainer bucket_items_;
