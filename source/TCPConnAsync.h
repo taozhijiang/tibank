@@ -54,6 +54,9 @@ private:
     void fill_http_for_send(const char* data, size_t len, const string& status);
     void fill_http_for_send(const string& str, const string& status);
 
+	// 标准的HTTP响应头和响应体
+	void fill_std_http_for_send(enum http_proto::StatusCode code);
+
 private:
 
     // 用于读取HTTP的头部使用

@@ -551,5 +551,24 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 	return 0;
 }
 
+
+
+int get_test_handler(const HttpParser& http_parser, std::string& response, string& status_line) {
+
+	response = http_proto::content_ok;
+	status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
+
+	return 0;
+}
+
+
+int post_test_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
+
+	response = post_data;
+	status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
+
+	return 0;
+}
+
 } // end namespace
 

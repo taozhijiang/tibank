@@ -88,16 +88,13 @@ public:
 
 	int conn_pend_remove(ConnTypePtr p_conn) {
 		pending_to_remove_.PUSH(ConnTypeWeakPtr(p_conn));
+		conns_alive_.drop(p_conn);
 		return 0;
 	}
 
 	ThreadPool conn_remove_threads_;
 	void conn_remove_run(ThreadObjPtr ptr);
 	int  conn_remove_stop_graceful();
-
-    AliveTimer<ConnType>& get_keep_alived() {
-        return conns_alive_;
-    }
 
 public:
     ThreadPool io_service_threads_;

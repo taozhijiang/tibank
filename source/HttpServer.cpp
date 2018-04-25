@@ -59,6 +59,9 @@ bool HttpServer::init() {
     register_http_post_handler("/batch_submit", http_handler::batch_submit_handler);
 	register_http_post_handler("/batch_query", http_handler::batch_query_handler);
 
+	register_http_get_handler("/test", http_handler::get_test_handler);
+	register_http_post_handler("/test", http_handler::post_test_handler);
+
 
     // add purge task
 	int conn_time_out = 0;
@@ -69,7 +72,7 @@ bool HttpServer::init() {
 		conn_time_linger = 10;
     }
 
-	log_debug("socket conn time_out: %ds, linger: %ds", conn_time_out, conn_time_linger);
+	log_debug("socket/session conn time_out: %ds, linger: %ds", conn_time_out, conn_time_linger);
     conns_alive_.init(boost::bind(&HttpServer::conn_pend_remove, this, _1),
 									conn_time_out, conn_time_linger);
 

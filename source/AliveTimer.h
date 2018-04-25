@@ -35,9 +35,10 @@ private:
 template<typename T>
 class AliveTimer {
 public:
-    typedef std::shared_ptr<AliveItem<T> >               active_item_ptr;
+    typedef std::shared_ptr<AliveItem<T> >               active_item_ptr;     // internel use
     typedef std::map<time_t, std::set<active_item_ptr> > TimeContainer;       //
     typedef std::map<T*, active_item_ptr >               BucketContainer;     //
+	typedef std::set<T* >                                DropContainer;			// 主动删除
     typedef boost::function<int(std::shared_ptr<T>)>     ExpiredHandler;
 
 public:
@@ -151,6 +152,13 @@ public:
         return true;
     }
 
+	bool drop(std::shared_ptr<T> ptr) { // 此处肯定是shared_ptr的
+		boost::unique_lock<boost::mutex> drop_lock(drop_lock_);
+
+		auto result = drop_items_.insert(ptr.get());  // store weak_ptr
+		return result.second;
+	}
+
     bool clean_up() {
 
         if (!initialized_) {
@@ -158,9 +166,23 @@ public:
             return false;
         }
 
-        boost::unique_lock<boost::mutex> lock(lock_);
 
 		struct timeval checked_start;
+		::gettimeofday(&checked_start, NULL);
+
+		active_remove_conns();
+
+		struct timeval checked_active_now;
+		::gettimeofday(&checked_active_now, NULL);
+		int64_t active_elapse_ms = ( 1000000 * ( checked_active_now.tv_sec - checked_start.tv_sec ) + checked_active_now.tv_usec - checked_start.tv_usec ) / 1000;
+		if (active_elapse_ms > 10) {
+			log_notice("check active works too long elapse time: %ld ms, break now", active_elapse_ms);
+			return true;
+		}
+
+
+        boost::unique_lock<boost::mutex> lock(lock_);
+
 		::gettimeofday(&checked_start, NULL);
 		int checked_count = 0;
         time_t current_sec = ::time(NULL);
@@ -216,7 +238,74 @@ public:
             total_count += iter->second.size();
         }
         log_debug("current alived hashed count:%ld, timed_count: %ld", bucket_items_.size(), total_count);
-    }
+		if (bucket_items_.size() != total_count) {
+			safe_assert(false);
+			log_err("mismatch item count, bug count:%ld, timed_count: %ld", bucket_items_.size(), total_count);
+		}
+	}
+
+private:
+
+	void active_remove_item(T* p) {
+
+		active_item_ptr active_item;
+
+		do {
+			auto iter = bucket_items_.find(p);
+			if (iter == bucket_items_.end()) {
+				safe_assert(false);
+				log_err("bucket item: %p not found, critical error!", p);
+				break;
+			}
+			active_item = iter->second;
+
+			auto time_iter = time_items_.find(active_item->get_expire_time());
+			if (time_iter == time_items_.end()) {
+				safe_assert(false);
+				log_err("time slot: %ld not found, critical error!", active_item->get_expire_time());
+				bucket_items_.erase(iter);
+				break;
+			}
+
+			auto time_item_iter = time_iter->second.find(iter->second);
+			if (time_item_iter == time_iter->second.end()) {
+				safe_assert(false);
+				log_err("time item not found, critical error!");
+				bucket_items_.erase(iter);
+				break;
+			}
+
+			log_debug("bucket item remove: %p, %ld", p, iter->second->get_expire_time());
+			bucket_items_.erase(iter);
+			time_iter->second.erase(time_item_iter);
+
+		} while (0);
+
+		auto weak_real = active_item->get_weak_ptr();
+		if (std::shared_ptr<T> ptr = weak_real.lock()) { // bad!!!
+			safe_assert(false);
+			log_err("active item should not shared, bug...");
+			func_(ptr);
+		}
+	}
+
+	// 主动处理已经废弃的连接
+	int active_remove_conns() {
+		boost::unique_lock<boost::mutex> drop_lock(drop_lock_);
+
+		if (drop_items_.empty()) {
+			return 0;
+		}
+
+		boost::unique_lock<boost::mutex> lock(lock_);
+		std::for_each(drop_items_.begin(), drop_items_.end(), boost::bind(&AliveTimer::active_remove_item, this, _1));
+
+		int count = static_cast<int>(drop_items_.size());
+		drop_items_.clear();
+
+		log_debug("total active remove %d items!", count);
+		return count;
+	}
 
 private:
     bool initialized_;
@@ -225,6 +314,9 @@ private:
     TimeContainer   time_items_;
     BucketContainer bucket_items_;
     ExpiredHandler  func_;
+
+	mutable boost::mutex drop_lock_;
+	DropContainer   drop_items_;
 
     time_t time_out_;
     time_t time_linger_;

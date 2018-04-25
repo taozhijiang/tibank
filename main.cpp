@@ -1,6 +1,8 @@
 #include <signal.h>
 void backtrace_init();
 
+#include <boost/format.hpp>
+
 #include "config.h"
 
 #include "General.h"
@@ -14,6 +16,7 @@ void backtrace_init();
 volatile bool TiBANK_SHUTDOWN = false;
 const char* TiBANK_DATABASE_PREFIX = "tibank";
 struct tm service_start{};
+std::string TiBANK_VERSION;
 
 static void interrupted_callback(int signal){
     log_err("Signal %d received ...", signal);
@@ -55,7 +58,9 @@ static void show_vcs_info () {
 
 
     std::cout << " THIS RELEASE OF TiBANK " << std::endl;
-    std::cout << "      VERSION: "  << tibank_VERSION_MAJOR << "." << tibank_VERSION_MINOR << "." << tibank_VERSION_PATCH << std::endl;
+
+	TiBANK_VERSION = boost::str( boost::format("v%d.%d.%d") %tibank_VERSION_MAJOR %tibank_VERSION_MINOR %tibank_VERSION_PATCH);
+    std::cout << "      VERSION: "  << TiBANK_VERSION << std::endl;
 
     extern const char *build_commit_version;
     extern const char *build_commit_branch;

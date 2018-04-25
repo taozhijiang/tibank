@@ -222,14 +222,14 @@ private:
 
 		output << "[" << pool_name_ << "] PoolStats: " << std::endl;
 
-		{
+		{   // hold lock
 			boost::lock_guard<boost::mutex> lock(conn_notify_mutex_);
 
-		output << "capacity: " << capacity_ << ", acquired_count: " << acquired_count_ << ", ok_count: " << acquired_ok_count_;
+			output << "capacity: " << capacity_ << ", acquired_count: " << acquired_count_ << ", ok_count: " << acquired_ok_count_;
 
-		if (likely(acquired_count_)) {
-			output << ", success_ratio: " << 100 * (static_cast<double>(acquired_ok_count_) / acquired_count_) << "%" << std::endl;
-		}
+			if (likely(acquired_count_)) {
+				output << ", success_ratio: " << 100 * (static_cast<double>(acquired_ok_count_) / acquired_count_) << "%" << std::endl;
+			}
 
 			if (likely(!hold_time_ms_.empty())) {
 				int64_t sum_out = std::accumulate(hold_time_ms_.begin(), hold_time_ms_.end(), 0);
@@ -239,7 +239,6 @@ private:
 			output << "current busy: " << conns_busy_.size() << ", idle: " << conns_idle_.size() << std::endl;
 		}
 
-		std::cerr << output.str() << std::endl;
 		log_debug("%s", output.str().c_str());
 	}
 

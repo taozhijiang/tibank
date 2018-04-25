@@ -187,6 +187,7 @@ namespace http_proto {
 		{StatusCode::server_error_network_authentication_required, "511 Network Authentication Required"}
 	};
 
+
 	inline static std::string generate_response_status_line(const std::string http_version, enum StatusCode code) {
 		const auto iter = status_code_strings.find(code);
 		if(iter != status_code_strings.end()) {
@@ -207,7 +208,10 @@ namespace http_proto {
      */
     string http_response_generate(const string& content, const string& stat_str);
     string http_response_generate(const char* data, size_t len, const string& stat_str);
+	string http_std_response_generate(const std::string& http_ver, enum StatusCode stat);
+
     int http_url_decode(const std::string& in, std::string& out);
+	int http_url_encode(const std::string& in, std::string& out);
 
 }  // http_proto
 
