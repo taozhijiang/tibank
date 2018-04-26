@@ -86,12 +86,12 @@ public:
 
 	 ~AliveTimer(){}
 
-    bool touch(std::shared_ptr<T> ptr) {
+    bool TOUCH(std::shared_ptr<T> ptr) {
         time_t tm = ::time(NULL) + time_out_;
-        return touch(ptr, tm);
+        return TOUCH(ptr, tm);
 	 }
 
-    bool touch(std::shared_ptr<T> ptr, time_t tm) {
+    bool TOUCH(std::shared_ptr<T> ptr, time_t tm) {
         boost::unique_lock<boost::mutex> lock(lock_);
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter == bucket_items_.end()) {
@@ -121,12 +121,12 @@ public:
         return true;
 	}
 
-    bool insert(std::shared_ptr<T> ptr) {
+    bool INSERT(std::shared_ptr<T> ptr) {
         time_t tm = ::time(NULL) + time_out_;
-        return insert(ptr, tm);
+        return INSERT(ptr, tm);
     }
 
-    bool insert(std::shared_ptr<T> ptr, time_t tm ) {
+    bool INSERT(std::shared_ptr<T> ptr, time_t tm ) {
         boost::unique_lock<boost::mutex> lock(lock_);
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter != bucket_items_.end()) {
@@ -152,7 +152,7 @@ public:
         return true;
     }
 
-	bool drop(std::shared_ptr<T> ptr) { // 此处肯定是shared_ptr的
+	bool DROP(std::shared_ptr<T> ptr) { // 此处肯定是shared_ptr的
 		boost::unique_lock<boost::mutex> drop_lock(drop_lock_);
 
 		auto result = drop_items_.insert(ptr.get());  // store weak_ptr
@@ -246,51 +246,60 @@ public:
 
 private:
 
+	// 这里的删除和HttpServer的删除是异步的，所以如果遇到还存在的连接，
+	// 将其忽略，由超时机制再去处理
 	void active_remove_item(T* p) {
 
 		active_item_ptr active_item;
 
 		do {
-			auto iter = bucket_items_.find(p);
-			if (iter == bucket_items_.end()) {
+			auto bucket_iter = bucket_items_.find(p);
+			if (bucket_iter == bucket_items_.end()) {
 				safe_assert(false);
 				log_err("bucket item: %p not found, critical error!", p);
 				break;
 			}
-			active_item = iter->second;
+
+			active_item = bucket_iter->second;
+			if (std::shared_ptr<T> ptr = active_item->get_weak_ptr().lock()) { // bad!!!
+				log_notice("bucket item %p still alive, leave alone with it", p);
+				return;
+			}
 
 			auto time_iter = time_items_.find(active_item->get_expire_time());
 			if (time_iter == time_items_.end()) {
 				safe_assert(false);
 				log_err("time slot: %ld not found, critical error!", active_item->get_expire_time());
-				bucket_items_.erase(iter);
+				bucket_items_.erase(bucket_iter);  // remove it anyway
 				break;
 			}
 
-			auto time_item_iter = time_iter->second.find(iter->second);
-			if (time_item_iter == time_iter->second.end()) {
+			std::set<active_item_ptr>& time_set = time_iter->second;
+			auto time_item_iter = time_set.find(active_item);
+			if (time_item_iter == time_set.end()) {
 				safe_assert(false);
 				log_err("time item not found, critical error!");
-				bucket_items_.erase(iter);
+				bucket_items_.erase(bucket_iter);
 				break;
 			}
 
-			log_debug("bucket item remove: %p, %ld", p, iter->second->get_expire_time());
-			bucket_items_.erase(iter);
-			time_iter->second.erase(time_item_iter);
+			log_debug("bucket item remove: %p, %ld", p, active_item->get_expire_time());
+			bucket_items_.erase(bucket_iter);
+			time_set.erase(time_item_iter);
 
 		} while (0);
 
 		auto weak_real = active_item->get_weak_ptr();
 		if (std::shared_ptr<T> ptr = weak_real.lock()) { // bad!!!
 			safe_assert(false);
-			log_err("active item should not shared, bug...");
+			log_err("active remove item should not shared, bug...");
 			func_(ptr);
 		}
 	}
 
 	// 主动处理已经废弃的连接
 	int active_remove_conns() {
+
 		boost::unique_lock<boost::mutex> drop_lock(drop_lock_);
 
 		if (drop_items_.empty()) {
@@ -298,6 +307,9 @@ private:
 		}
 
 		boost::unique_lock<boost::mutex> lock(lock_);
+
+		// 在高并发的情况下会占用大量的时间，导致实时交易延迟而不能退出
+		// 后续优化之
 		std::for_each(drop_items_.begin(), drop_items_.end(), boost::bind(&AliveTimer::active_remove_item, this, _1));
 
 		int count = static_cast<int>(drop_items_.size());

@@ -27,17 +27,28 @@ typedef TCPConnAsync ConnType;
 typedef std::shared_ptr<ConnType> ConnTypePtr;
 typedef std::weak_ptr<ConnType>   ConnTypeWeakPtr;
 
+struct HttpConf {
+
+    std::string        		 docu_root_;
+    std::vector<std::string> docu_index_;
+
+    int conn_time_out_;
+    int conn_time_out_linger_;
+
+    int ops_cancel_time_out_;  // sec 会话超时自动取消ops
+};
+
 class HttpServer : public boost::noncopyable,
-                     public std::enable_shared_from_this<HttpServer> {
+                   public std::enable_shared_from_this<HttpServer> {
 
     friend class TCPConnAsync;  // can not work with typedef, ugly ...
 
 public:
 
     /// Construct the server to listen on the specified TCP address and port
-    HttpServer(const std::string& address, unsigned short port, size_t t_size, std::string docu_root);
+    HttpServer(const std::string& address, unsigned short port, size_t t_size);
     bool init();
-
+    void service();
 
 private:
     io_service io_service_;
@@ -46,60 +57,62 @@ private:
     ip::tcp::endpoint ep_;
     ip::tcp::acceptor acceptor_;
 
-	const std::string docu_root_;
-	std::vector<std::string> docu_index_;
+    HttpConf conf_;
 
     void do_accept();
     void accept_handler(const boost::system::error_code& ec, SocketPtr ptr);
 
     std::map<std::string, HttpPostHandler> http_post_handler_;
-	std::map<std::string, HttpGetHandler> http_get_handler_;
+    std::map<std::string, HttpGetHandler>  http_get_handler_;
 
-    BucketSet<ConnTypePtr> conns_;
+    BucketSet<ConnTypePtr>  conns_;
 
-	EQueue<ConnTypeWeakPtr> pending_to_remove_;
-	AliveTimer<ConnType>   conns_alive_;
+    EQueue<ConnTypeWeakPtr> pending_to_remove_;
+    AliveTimer<ConnType>    conns_alive_;
 
 public:
-
     int register_http_post_handler(std::string uri, HttpPostHandler handler);
     int find_http_post_handler(std::string uri, HttpPostHandler& handler);
 
-	int register_http_get_handler(std::string uri, HttpGetHandler handler);
+    int register_http_get_handler(std::string uri, HttpGetHandler handler);
     int find_http_get_handler(std::string uri, HttpGetHandler& handler);
 
-	const std::string& get_document_root() {
-		return docu_root_;
+    const std::string& document_root() const {
+        return conf_.docu_root_;
+    }
+
+    const std::vector<std::string>& document_index() const {
+        return conf_.docu_index_;
+    }
+
+	int ops_cancel_time_out() const {
+		return conf_.ops_cancel_time_out_;
 	}
 
-	const std::vector<std::string>& get_document_index() {
-		return docu_index_;
-	}
-
-	int conn_add(ConnTypePtr p_conn) {
-		conns_.INSERT(p_conn);
-        conns_alive_.insert(p_conn);
-		return 0;
-	}
+    int conn_add(ConnTypePtr p_conn) {
+        conns_.INSERT(p_conn);
+        conns_alive_.INSERT(p_conn);
+        return 0;
+    }
 
     void conn_touch(ConnTypePtr p_conn) {
-		conns_alive_.touch(p_conn);
-	}
+        conns_alive_.TOUCH(p_conn);
+    }
 
-	int conn_pend_remove(ConnTypePtr p_conn) {
-		pending_to_remove_.PUSH(ConnTypeWeakPtr(p_conn));
-		conns_alive_.drop(p_conn);
-		return 0;
-	}
+    int conn_pend_remove(ConnTypePtr p_conn) {
+        pending_to_remove_.PUSH(ConnTypeWeakPtr(p_conn));
+        conns_alive_.DROP(p_conn);
+        return 0;
+    }
 
-	ThreadPool conn_remove_threads_;
-	void conn_remove_run(ThreadObjPtr ptr);
-	int  conn_remove_stop_graceful();
+    ThreadPool conn_remove_threads_;
+    void conn_remove_run(ThreadObjPtr ptr);
+    int  conn_remove_stop_graceful();
 
 public:
     ThreadPool io_service_threads_;
-    void io_service_run(ThreadObjPtr ptr);	// main task loop
-	int io_service_stop_graceful();
+    void io_service_run(ThreadObjPtr ptr);  // main task loop
+    int io_service_stop_graceful();
 };
 
 #endif //_TiBANK_HTTP_SERVER_H_

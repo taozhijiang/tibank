@@ -23,7 +23,7 @@ static void interrupted_callback(int signal){
 
     switch(signal) {
 
-	case SIGQUIT:
+    case SIGQUIT:
             log_info("Graceful stop tibank service ... ");
             SrvManager::instance().service_graceful();
             log_info("Graceful stop tibank done!"); // main join all
@@ -59,7 +59,7 @@ static void show_vcs_info () {
 
     std::cout << " THIS RELEASE OF TiBANK " << std::endl;
 
-	TiBANK_VERSION = boost::str( boost::format("v%d.%d.%d") %tibank_VERSION_MAJOR %tibank_VERSION_MINOR %tibank_VERSION_PATCH);
+    TiBANK_VERSION = boost::str( boost::format("v%d.%d.%d") %tibank_VERSION_MAJOR %tibank_VERSION_MINOR %tibank_VERSION_PATCH);
     std::cout << "      VERSION: "  << TiBANK_VERSION << std::endl;
 
     extern const char *build_commit_version;
@@ -80,6 +80,7 @@ static void show_vcs_info () {
 
 // /var/run/[program_invocation_short_name].pid --> root permission
 static int create_process_pid() {
+
     char pid_msg[24];
     char pid_file[PATH_MAX];
 
@@ -101,19 +102,19 @@ static int create_process_pid() {
 
 int main(int argc, char* argv[]) {
 
-	show_vcs_info();
+    show_vcs_info();
 
     std::string config_file = "tibank.conf";
-	if (!sys_config_init(config_file)) {
-		std::cout << "Handle system configure failed!" << std::endl;
-		return -1;
-	}
+    if (!sys_config_init(config_file)) {
+        std::cout << "Handle system configure failed!" << std::endl;
+        return -1;
+    }
 
     int log_level = 0;
     if (!get_config_value("log_level", log_level)) {
-		log_level = LOG_INFO;
-		log_info("Using default log_level LOG_INFO");
-	}
+        log_level = LOG_INFO;
+        log_info("Using default log_level LOG_INFO");
+    }
 
     if (!Log::instance().init(log_level)) {
         std::cerr << "Init syslog failed!" << std::endl;
