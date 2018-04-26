@@ -60,7 +60,7 @@ void TCPConnAsync::do_read_head() {
     output << "strand read read_until ... in " << boost::this_thread::get_id();
     log_debug(output.str().c_str());
 
-	set_ops_cancel_timeout();
+    set_ops_cancel_timeout();
     async_read_until(*sock_ptr_, request_,
                              "\r\n\r\n",
                              strand_->wrap(
@@ -74,112 +74,112 @@ void TCPConnAsync::do_read_head() {
 void TCPConnAsync::read_head_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
     http_server_.conn_touch(shared_from_this());
-	revoke_ops_cancel_timeout();
+    revoke_ops_cancel_timeout();
 
-	if (ec) {
-		handle_socket_ec(ec);
-		return;
-	}
+    if (ec) {
+        handle_socket_ec(ec);
+        return;
+    }
 
-	safe_assert(bytes_transferred > 0);
+    safe_assert(bytes_transferred > 0);
 
-	std::string head_str (boost::asio::buffers_begin(request_.data()),
-							boost::asio::buffers_begin(request_.data()) + request_.size());
+    std::string head_str (boost::asio::buffers_begin(request_.data()),
+                            boost::asio::buffers_begin(request_.data()) + request_.size());
 
-	request_.consume(bytes_transferred); // skip the already head
+    request_.consume(bytes_transferred); // skip the already head
 
-	if (!http_parser_.parse_request_header(head_str.c_str())) {
-		log_err( "Parse request error: %s", head_str.c_str());
-		goto error_return;
-	}
+    if (!http_parser_.parse_request_header(head_str.c_str())) {
+        log_err( "Parse request error: %s", head_str.c_str());
+        goto error_return;
+    }
 
-	// Header must already recv here, do the uri parse work,
-	// And store the items in params
-	if (!http_parser_.parse_request_uri()) {
-		std::string uri = http_parser_.find_request_header(http_proto::header_options::request_uri);
-		log_err("Prase request uri failed: %s", uri.c_str());
-		goto error_return;
-	}
+    // Header must already recv here, do the uri parse work,
+    // And store the items in params
+    if (!http_parser_.parse_request_uri()) {
+        std::string uri = http_parser_.find_request_header(http_proto::header_options::request_uri);
+        log_err("Prase request uri failed: %s", uri.c_str());
+        goto error_return;
+    }
 
-	if (http_parser_.get_method() == HTTP_METHOD::GET) {
+    if (http_parser_.get_method() == HTTP_METHOD::GET) {
 
-		// HTTP GET handler
-		safe_assert(http_parser_.find_request_header(http_proto::header_options::content_length).empty());
+        // HTTP GET handler
+        safe_assert(http_parser_.find_request_header(http_proto::header_options::content_length).empty());
 
-		std::string real_path_info = http_parser_.find_request_header(http_proto::header_options::request_path_info);
-		HttpGetHandler handler;
-		std::string response_body;
-		std::string response_status;
+        std::string real_path_info = http_parser_.find_request_header(http_proto::header_options::request_path_info);
+        HttpGetHandler handler;
+        std::string response_body;
+        std::string response_status;
 
-		if (http_server_.find_http_get_handler(real_path_info, handler) != 0){
-			log_err("uri %s handler not found, using default handler!", real_path_info.c_str());
-			handler = http_handler::default_http_get_handler;
-		} else if(!handler) {
-			log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
-			fill_std_http_for_send(http_proto::StatusCode::client_error_bad_request);
-			goto write_return;
-		}
+        if (http_server_.find_http_get_handler(real_path_info, handler) != 0){
+            log_err("uri %s handler not found, using default handler!", real_path_info.c_str());
+            handler = http_handler::default_http_get_handler;
+        } else if(!handler) {
+            log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
+            fill_std_http_for_send(http_proto::StatusCode::client_error_bad_request);
+            goto write_return;
+        }
 
-		handler(http_parser_, response_body, response_status); // just call it!
-		if (response_body.empty() || response_status.empty()) {
-			log_err("caller not generate response body!");  // default status OK
-			fill_std_http_for_send(http_proto::StatusCode::success_ok);
-		} else {
-			fill_http_for_send(response_body, response_status);
-		}
+        handler(http_parser_, response_body, response_status); // just call it!
+        if (response_body.empty() || response_status.empty()) {
+            log_err("caller not generate response body!");  // default status OK
+            fill_std_http_for_send(http_proto::StatusCode::success_ok);
+        } else {
+            fill_http_for_send(response_body, response_status);
+        }
 
-		goto write_return;
+        goto write_return;
 
-	} else if (http_parser_.get_method() == HTTP_METHOD::POST ) {
+    } else if (http_parser_.get_method() == HTTP_METHOD::POST ) {
 
-		// HTTP POST handler
+        // HTTP POST handler
 
-		size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
-		r_size_ = 0;
-		size_t additional_size = request_.size(); // net additional body size
+        size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
+        r_size_ = 0;
+        size_t additional_size = request_.size(); // net additional body size
 
-		safe_assert( additional_size <= len );
-		if (len + 1 > p_buffer_->size()) {
-			log_info( "relarge receive buffer size to: %d", (len + 256));
-			p_buffer_->resize(len + 256);
-		}
+        safe_assert( additional_size <= len );
+        if (len + 1 > p_buffer_->size()) {
+            log_info( "relarge receive buffer size to: %d", (len + 256));
+            p_buffer_->resize(len + 256);
+        }
 
-		// first async_read_until may read more additional data, if so
-		// then move additional data possible
-		if( additional_size ) {
+        // first async_read_until may read more additional data, if so
+        // then move additional data possible
+        if( additional_size ) {
 
-			std::string additional (boost::asio::buffers_begin(request_.data()),
-					  boost::asio::buffers_begin(request_.data()) + additional_size);
+            std::string additional (boost::asio::buffers_begin(request_.data()),
+                      boost::asio::buffers_begin(request_.data()) + additional_size);
 
-			memcpy(p_buffer_->data(), additional.c_str(), additional_size + 1);
-			r_size_ = additional_size;
-			request_.consume(additional_size); // skip the head part
-		}
+            memcpy(p_buffer_->data(), additional.c_str(), additional_size + 1);
+            r_size_ = additional_size;
+            request_.consume(additional_size); // skip the head part
+        }
 
-		// normally, we will return these 2 cases
-		if (additional_size < len) {
-			// need to read more data here, write to r_size_
+        // normally, we will return these 2 cases
+        if (additional_size < len) {
+            // need to read more data here, write to r_size_
 
-			// if cancel, abort following ops
-			if (was_ops_cancelled()) {
-				handle_socket_ec(ec);
-				return;
-			}
+            // if cancel, abort following ops
+            if (was_ops_cancelled()) {
+                handle_socket_ec(ec);
+                return;
+            }
 
-			do_read_body();
-		}
-		else {
-			// call the process callback directly
-			read_body_handler(ec, 0);   // already updated r_size_
-		}
+            do_read_body();
+        }
+        else {
+            // call the process callback directly
+            read_body_handler(ec, 0);   // already updated r_size_
+        }
 
-		return;
+        return;
 
-	} else {
-		log_err("Invalid or unsupport request method: %s",
-				http_parser_.find_request_header(http_proto::header_options::request_method).c_str());
-		fill_std_http_for_send(http_proto::StatusCode::client_error_bad_request);
-		goto write_return;
+    } else {
+        log_err("Invalid or unsupport request method: %s",
+                http_parser_.find_request_header(http_proto::header_options::request_method).c_str());
+        fill_std_http_for_send(http_proto::StatusCode::client_error_bad_request);
+        goto write_return;
     }
 
 error_return:
@@ -214,7 +214,7 @@ void TCPConnAsync::do_read_body() {
     output << "strand read async_read exactly... in " << boost::this_thread::get_id();
     log_debug(output.str().c_str());
 
-	set_ops_cancel_timeout();
+    set_ops_cancel_timeout();
     async_read(*sock_ptr_, buffer(p_buffer_->data() + r_size_, len - r_size_),
                     boost::asio::transfer_at_least(len - r_size_),
                              strand_->wrap(
@@ -228,46 +228,46 @@ void TCPConnAsync::do_read_body() {
 
 void TCPConnAsync::read_body_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
-	http_server_.conn_touch(shared_from_this());
-	revoke_ops_cancel_timeout();
+    http_server_.conn_touch(shared_from_this());
+    revoke_ops_cancel_timeout();
 
-	if (ec) {
-		handle_socket_ec(ec);
-		return;
-	}
+    if (ec) {
+        handle_socket_ec(ec);
+        return;
+    }
 
-	size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
-	r_size_ += bytes_transferred;
-	if (r_size_ < len) {
-		// need to read more, do again!
-		do_read_body();
-		return;
-	}
+    size_t len = ::atoi(http_parser_.find_request_header(http_proto::header_options::content_length).c_str());
+    r_size_ += bytes_transferred;
+    if (r_size_ < len) {
+        // need to read more, do again!
+        do_read_body();
+        return;
+    }
 
-	std::string real_path_info = http_parser_.find_request_header(http_proto::header_options::request_path_info);
-	HttpPostHandler handler;
-	std::string response_body;
-	std::string response_status;
-	if (http_server_.find_http_post_handler(real_path_info, handler) != 0){
-		log_err("uri %s handler not found, and no default!", real_path_info.c_str());
-		fill_std_http_for_send(http_proto::StatusCode::client_error_not_found);
-	} else {
-		if (handler) {
-			handler(http_parser_, std::string(p_buffer_->data(), r_size_), response_body, response_status); // call it!
-			if (response_body.empty() || response_status.empty()) {
-				log_err("caller not generate response body!");
-				fill_std_http_for_send(http_proto::StatusCode::success_ok);
-			} else {
-				fill_http_for_send(response_body, response_status);
-			}
-		} else {
-			log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
-			fill_std_http_for_send(http_proto::StatusCode::client_error_bad_request);
-		}
-	}
+    std::string real_path_info = http_parser_.find_request_header(http_proto::header_options::request_path_info);
+    HttpPostHandler handler;
+    std::string response_body;
+    std::string response_status;
+    if (http_server_.find_http_post_handler(real_path_info, handler) != 0){
+        log_err("uri %s handler not found, and no default!", real_path_info.c_str());
+        fill_std_http_for_send(http_proto::StatusCode::client_error_not_found);
+    } else {
+        if (handler) {
+            handler(http_parser_, std::string(p_buffer_->data(), r_size_), response_body, response_status); // call it!
+            if (response_body.empty() || response_status.empty()) {
+                log_err("caller not generate response body!");
+                fill_std_http_for_send(http_proto::StatusCode::success_ok);
+            } else {
+                fill_http_for_send(response_body, response_status);
+            }
+        } else {
+            log_err("real_path_info %s found, but handler empty!", real_path_info.c_str());
+            fill_std_http_for_send(http_proto::StatusCode::client_error_bad_request);
+        }
+    }
 
-	// default, OK
-	// go through write return;
+    // default, OK
+    // go through write return;
 
     // write_return:
     do_write();
@@ -292,7 +292,7 @@ void TCPConnAsync::do_write() override {
     output << "strand write async_write exactly... in " << boost::this_thread::get_id();
     log_debug(output.str().c_str());
 
-	set_ops_cancel_timeout();
+    set_ops_cancel_timeout();
     async_write(*sock_ptr_, buffer(p_write_->data() + w_pos_, w_size_ - w_pos_),
                     boost::asio::transfer_at_least(w_size_ - w_pos_),
                               strand_->wrap(
@@ -307,33 +307,33 @@ void TCPConnAsync::do_write() override {
 void TCPConnAsync::write_handler(const boost::system::error_code& ec, size_t bytes_transferred) {
 
     http_server_.conn_touch(shared_from_this());
-	revoke_ops_cancel_timeout();
+    revoke_ops_cancel_timeout();
 
-	if (ec) {
-		handle_socket_ec(ec);
-		return;
-	}
+    if (ec) {
+        handle_socket_ec(ec);
+        return;
+    }
 
-	safe_assert(bytes_transferred > 0);
+    safe_assert(bytes_transferred > 0);
 
-	w_pos_ += bytes_transferred;
+    w_pos_ += bytes_transferred;
 
-	if (w_pos_ < w_size_) {
+    if (w_pos_ < w_size_) {
 
-		if (was_ops_cancelled()) {
-			handle_socket_ec(ec);
-			return;
-		}
+        if (was_ops_cancelled()) {
+            handle_socket_ec(ec);
+            return;
+        }
 
-		log_debug("need additional write operation: %lu ~ %lu", w_pos_, w_size_);
-		do_write();
+        log_debug("need additional write operation: %lu ~ %lu", w_pos_, w_size_);
+        do_write();
 
-	} else {
+    } else {
 
-		// reset
-		w_pos_ = w_size_ = 0;
+        // reset
+        w_pos_ = w_size_ = 0;
 
-	}
+    }
 
 }
 
@@ -408,7 +408,7 @@ bool TCPConnAsync::handle_socket_ec(const boost::system::error_code& ec ) {
         log_debug("Operation aborted(cancel) ..."); // like timer ...
     } else if (ec == boost::asio::error::bad_descriptor) {
         log_debug("Bad file descriptor ...");
-		close_socket = true;
+        close_socket = true;
     } else {
         log_debug("Undetected error %d, %s ...", ec, ec.message().c_str());
         close_socket = true;
@@ -419,8 +419,7 @@ bool TCPConnAsync::handle_socket_ec(const boost::system::error_code& ec ) {
         revoke_ops_cancel_timeout();
         ops_cancel();
         sock_shutdown(ShutdownType::kShutdownBoth);
-		sock_close();
-        http_server_.conn_pend_remove(shared_from_this());
+        sock_close();
     }
 
     return close_socket;
@@ -428,35 +427,35 @@ bool TCPConnAsync::handle_socket_ec(const boost::system::error_code& ec ) {
 
 void TCPConnAsync::set_ops_cancel_timeout() {
 
-	if (http_server_.ops_cancel_time_out() == 0){
-		safe_assert(!ops_cancel_timer_);
-		return;
-	}
+    if (http_server_.ops_cancel_time_out() == 0){
+        safe_assert(!ops_cancel_timer_);
+        return;
+    }
 
-	ops_cancel_timer_.reset( new boost::asio::deadline_timer (http_server_.io_service_,
-									  boost::posix_time::seconds(http_server_.ops_cancel_time_out())) );
-	safe_assert(http_server_.ops_cancel_time_out());
-	ops_cancel_timer_->async_wait(boost::bind(&TCPConnAsync::ops_cancel_timeout_call, shared_from_this(),
-										   boost::asio::placeholders::error));
-	log_debug("register ops_cancel_time_out %d sec", http_server_.ops_cancel_time_out());
+    ops_cancel_timer_.reset( new boost::asio::deadline_timer (http_server_.io_service_,
+                                      boost::posix_time::seconds(http_server_.ops_cancel_time_out())) );
+    safe_assert(http_server_.ops_cancel_time_out());
+    ops_cancel_timer_->async_wait(boost::bind(&TCPConnAsync::ops_cancel_timeout_call, shared_from_this(),
+                                           boost::asio::placeholders::error));
+    log_debug("register ops_cancel_time_out %d sec", http_server_.ops_cancel_time_out());
 }
 
 void TCPConnAsync::revoke_ops_cancel_timeout() {
 
-	boost::system::error_code ignore_ec;
-	if (ops_cancel_timer_) {
-		ops_cancel_timer_->cancel(ignore_ec);
-		ops_cancel_timer_.reset();
-	}
+    boost::system::error_code ignore_ec;
+    if (ops_cancel_timer_) {
+        ops_cancel_timer_->cancel(ignore_ec);
+        ops_cancel_timer_.reset();
+    }
 }
 
 void TCPConnAsync::ops_cancel_timeout_call(const boost::system::error_code& ec) {
 
     if (ec == 0){
-		log_info("ops_cancel_timeout_call called with timeout: %d,", http_server_.ops_cancel_time_out());
+        log_info("ops_cancel_timeout_call called with timeout: %d,", http_server_.ops_cancel_time_out());
         ops_cancel();
         sock_shutdown(ShutdownType::kShutdownBoth);
-		sock_close();
+        sock_close();
     } else if ( ec == boost::asio::error::operation_aborted) {
         // normal cancel
     } else {

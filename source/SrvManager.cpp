@@ -122,7 +122,6 @@ bool SrvManager::init() {
     // start work
     TimerService::instance().start_timer();
     http_server_ptr_->io_service_threads_.start_threads();
-    http_server_ptr_->conn_remove_threads_.start_threads();
 
     // business attached
     trans_process_ptr_->trans_process_task_.start_threads();
@@ -140,7 +139,6 @@ bool SrvManager::init() {
 bool SrvManager::service_graceful() {
 
     http_server_ptr_->io_service_stop_graceful();
-    http_server_ptr_->conn_remove_stop_graceful();
     TimerService::instance().stop_graceful();
     log_info("timer_service_ graceful finished!");
 

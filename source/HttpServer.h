@@ -16,7 +16,6 @@
 #include "HttpHandler.h"
 
 #include "EQueue.h"
-#include "BucketSet.h"
 #include "HttpParser.h"
 #include "AliveTimer.h"
 
@@ -29,7 +28,7 @@ typedef std::weak_ptr<ConnType>   ConnTypeWeakPtr;
 
 struct HttpConf {
 
-    std::string        		 docu_root_;
+    std::string              docu_root_;
     std::vector<std::string> docu_index_;
 
     int conn_time_out_;
@@ -65,9 +64,6 @@ private:
     std::map<std::string, HttpPostHandler> http_post_handler_;
     std::map<std::string, HttpGetHandler>  http_get_handler_;
 
-    BucketSet<ConnTypePtr>  conns_;
-
-    EQueue<ConnTypeWeakPtr> pending_to_remove_;
     AliveTimer<ConnType>    conns_alive_;
 
 public:
@@ -85,12 +81,11 @@ public:
         return conf_.docu_index_;
     }
 
-	int ops_cancel_time_out() const {
-		return conf_.ops_cancel_time_out_;
-	}
+    int ops_cancel_time_out() const {
+        return conf_.ops_cancel_time_out_;
+    }
 
     int conn_add(ConnTypePtr p_conn) {
-        conns_.INSERT(p_conn);
         conns_alive_.INSERT(p_conn);
         return 0;
     }
@@ -99,15 +94,11 @@ public:
         conns_alive_.TOUCH(p_conn);
     }
 
-    int conn_pend_remove(ConnTypePtr p_conn) {
-        pending_to_remove_.PUSH(ConnTypeWeakPtr(p_conn));
-        conns_alive_.DROP(p_conn);
+    int conn_destroy(ConnTypePtr p_conn) {
+        p_conn->sock_shutdown(ShutdownType::kShutdownBoth);
+        p_conn->sock_close();
         return 0;
     }
-
-    ThreadPool conn_remove_threads_;
-    void conn_remove_run(ThreadObjPtr ptr);
-    int  conn_remove_stop_graceful();
 
 public:
     ThreadPool io_service_threads_;

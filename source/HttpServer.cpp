@@ -22,44 +22,36 @@ HttpServer::HttpServer(const std::string& address, unsigned short port, size_t t
     ep_(ip::tcp::endpoint(ip::address::from_string(address), port)),
     acceptor_(io_service_, ep_),
     conf_({}),
-    conns_(bucket_size_, bucket_hash_index_call),
-    pending_to_remove_(),
     conns_alive_("TcpConnAsync"),
-    conn_remove_threads_(1),
     io_service_threads_(static_cast<uint8_t>(t_size)) {
 
 }
 
 bool HttpServer::init() {
 
-    if (!conns_.init()) {
-        log_err("Init http net_conns_ BucketSet failed!");
-        return false;
-    }
-
     if (!get_config_value("http.docu_root", conf_.docu_root_)) {
-		log_err("get http.docu_root failed!");
+        log_err("get http.docu_root failed!");
         return false;
     }
 
     std::string docu_index;
     if (!get_config_value("http.docu_index", docu_index)) {
-		log_err("get http.docu_index failed!");
+        log_err("get http.docu_index failed!");
         return false;
     }
-	std::vector<std::string> vec {};
-	boost::split(vec, docu_index, boost::is_any_of(";"));
+    std::vector<std::string> vec {};
+    boost::split(vec, docu_index, boost::is_any_of(";"));
     for (auto iter = vec.begin(); iter != vec.cend(); ++ iter){
         std::string tmp = boost::trim_copy(*iter);
         if (tmp.empty())
             continue;
 
-		conf_.docu_index_.push_back(tmp);
+        conf_.docu_index_.push_back(tmp);
     }
-	if (conf_.docu_index_.empty()) {
-		log_err("empty valid docu_index found, previous: %s", docu_index.c_str());
-		return false;
-	}
+    if (conf_.docu_index_.empty()) {
+        log_err("empty valid docu_index found, previous: %s", docu_index.c_str());
+        return false;
+    }
 
     if (!get_config_value("http.conn_time_out", conf_.conn_time_out_) ||
         !get_config_value("http.conn_time_out_linger", conf_.conn_time_out_linger_)) {
@@ -69,7 +61,7 @@ bool HttpServer::init() {
     }
 
     log_debug("socket/session conn time_out: %ds, linger: %ds", conf_.conn_time_out_, conf_.conn_time_out_linger_);
-    conns_alive_.init(boost::bind(&HttpServer::conn_pend_remove, this, _1),
+    conns_alive_.init(boost::bind(&HttpServer::conn_destroy, this, _1),
                                   conf_.conn_time_out_, conf_.conn_time_out_linger_);
 
     if (!get_config_value("http.ops_cancel_time_out", conf_.ops_cancel_time_out_)){
@@ -84,11 +76,6 @@ bool HttpServer::init() {
 
     if (!io_service_threads_.init_threads(boost::bind(&HttpServer::io_service_run, shared_from_this(), _1))) {
         log_err("HttpServer::io_service_run init task failed!");
-        return false;
-    }
-
-    if (!conn_remove_threads_.init_threads(boost::bind(&HttpServer::conn_remove_run, shared_from_this(), _1))) {
-        log_err("HttpServer::net_conn_remove_run init task failed!");
         return false;
     }
 
@@ -259,60 +246,6 @@ int HttpServer::io_service_stop_graceful() {
     log_err("About to stop io_service... ");
     io_service_.stop();
     io_service_threads_.graceful_stop_threads();
-
-    return 0;
-}
-
-// main task loop
-void HttpServer::conn_remove_run(ThreadObjPtr ptr) {
-
-    std::stringstream ss_id;
-    ss_id << boost::this_thread::get_id();
-    log_info("HttpServer net_conn_remove thread %s is about to work... ", ss_id.str().c_str());
-
-    while (true) {
-
-        if (unlikely(ptr->status_ == ThreadStatus::kThreadTerminating)) {
-            if (pending_to_remove_.EMPTY()) {
-                log_debug("net_conn_remove queue is empty, safe terminate");
-                break;
-            }
-        }
-
-        // 线程启动
-        if (unlikely(ptr->status_ == ThreadStatus::kThreadSuspend)) {
-            ::usleep(1*1000*1000);
-            continue;
-        }
-
-        ConnTypeWeakPtr net_conn_weak_ptr;
-        if (!pending_to_remove_.POP(net_conn_weak_ptr, 3 * 1000 /*3s*/)) {
-            //log_debug("net_conn remove timeout return!");
-            continue;
-        }
-
-        if (ConnTypePtr shared_conn_ptr = net_conn_weak_ptr.lock()) {
-            if (shared_conn_ptr->get_conn_stat() != ConnStat::kConnError) {
-                log_notice("Warning, remove unerror conn: %d", shared_conn_ptr->get_conn_stat());
-            }
-
-            // log_debug("do remove ... ");
-            conns_.ERASE(shared_conn_ptr);
-        }
-
-    }
-
-    ptr->status_ = ThreadStatus::kThreadDead;
-    log_info("HttpServer net_conn_remove thread %s is about to terminate ... ", ss_id.str().c_str());
-
-    return;
-}
-
-
-int HttpServer::conn_remove_stop_graceful() {
-
-    log_err("about to stop net_conn_remove thread ... ");
-    conn_remove_threads_.graceful_stop_threads();
 
     return 0;
 }
