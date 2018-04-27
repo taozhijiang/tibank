@@ -26,8 +26,12 @@ typedef TCPConnAsync ConnType;
 typedef std::shared_ptr<ConnType> ConnTypePtr;
 typedef std::weak_ptr<ConnType>   ConnTypeWeakPtr;
 
-struct HttpConf {
+class HttpServer;
+class HttpConf {
 
+	friend class HttpServer;
+
+private:
     std::string              docu_root_;
     std::vector<std::string> docu_index_;
 
@@ -35,10 +39,38 @@ struct HttpConf {
     int conn_time_out_linger_;
 
     int ops_cancel_time_out_;  // sec 会话超时自动取消ops
+
+	boost::mutex      lock_;
+	bool    		  http_service_enabled_;  // 服务开关
+	int64_t           http_service_speed_;
+	volatile int64_t  http_service_token_;
+
+	bool get_http_service_token() {
+		boost::unique_lock<boost::mutex> lock(lock_);
+		if (http_service_speed_ == 0) // 没有限流
+			return true;
+
+		if (http_service_token_ <= 0)
+			return false;
+
+		-- http_service_token_;
+		return true;
+	}
+
+
+	void withdraw_http_service_token() { 	// 支持将令牌还回去
+		boost::unique_lock<boost::mutex> lock(lock_);
+		++ http_service_token_;
+	}
+
+	void feed_http_service_token(){
+		boost::unique_lock<boost::mutex> lock(lock_);
+		http_service_token_ = http_service_speed_;
+	}
 };
 
 class HttpServer : public boost::noncopyable,
-                   public std::enable_shared_from_this<HttpServer> {
+                    public std::enable_shared_from_this<HttpServer> {
 
     friend class TCPConnAsync;  // can not work with typedef, ugly ...
 
@@ -99,6 +131,7 @@ public:
         p_conn->sock_close();
         return 0;
     }
+
 
 public:
     ThreadPool io_service_threads_;

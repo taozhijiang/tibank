@@ -26,7 +26,7 @@ public:
     TCPConnAsync(std::shared_ptr<ip::tcp::socket> p_socket, HttpServer& server);
 
     virtual ~TCPConnAsync() {
-        // log_debug("NET CONN SOCKET RELEASED!!!");
+        log_debug("TCPConnAsync SOCKET RELEASED!!!");
     }
 
     virtual void start();

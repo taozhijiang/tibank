@@ -7,7 +7,6 @@
 #include "HttpHandler.h"
 #include "Utils.h"
 #include "SrvManager.h"
-#include "TimerService.h"
 
 #include "Log.h"
 #include "HttpServer.h"
@@ -71,13 +70,33 @@ bool HttpServer::init() {
     if (conf_.ops_cancel_time_out_ < 0) {
         conf_.ops_cancel_time_out_ = 0;
     }
-    log_debug("socket/session conn cancel time_out: %d, enabled -> %s", conf_.ops_cancel_time_out_,
+    log_debug("socket/session conn cancel time_out: %d, enabled: %s", conf_.ops_cancel_time_out_,
               conf_.ops_cancel_time_out_ > 0 ? "true" : "false");
+
+	if (!get_config_value("http.service_enable", conf_.http_service_enabled_) ||
+		!get_config_value("http.service_speed", conf_.http_service_speed_)){
+		log_err("get http service enable/speed configure value error, using default.");
+		conf_.http_service_enabled_ = true;
+		conf_.http_service_speed_ = 0;
+	}
+	if (conf_.http_service_speed_ < 0) {
+		conf_.http_service_speed_ = 0;
+	}
+
+	if (conf_.http_service_speed_ && (register_timer_task( boost::bind(&HttpConf::feed_http_service_token, &conf_), 5*1000, true, true) == 0) ) {
+		log_err("register http token feed task failed!");
+		return false;
+	}
+	log_debug("http service enabled: %s, speed: %ld", conf_.http_service_enabled_ ? "true" : "false",
+			  conf_.http_service_speed_);
+
+
 
     if (!io_service_threads_.init_threads(boost::bind(&HttpServer::io_service_run, shared_from_this(), _1))) {
         log_err("HttpServer::io_service_run init task failed!");
         return false;
     }
+
 
     // customize route uri handler
     register_http_post_handler("/submit", http_handler::submit_handler);
@@ -90,9 +109,7 @@ bool HttpServer::init() {
     register_http_post_handler("/test", http_handler::post_test_handler);
 
 
-    if (TimerService::instance().register_timer_task(
-                                    boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_),
-                                    5*1000, true, false) == 0) {
+    if (register_timer_task( boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_), 5*1000, true, false) == 0) {
         log_err("Register alive conn purge task failed!");
         return false;
     }
@@ -154,20 +171,38 @@ void HttpServer::do_accept() {
 
 void HttpServer::accept_handler(const boost::system::error_code& ec, SocketPtr sock_ptr) {
 
-    if (ec) {
-        log_err("Error during accept!");
-        return;
-    }
+	do {
 
-    std::stringstream output;
-    output << "Client Info: " << sock_ptr->remote_endpoint().address() << "/" <<
-        sock_ptr->remote_endpoint().port();
-    log_debug(output.str().c_str());
+		if (ec) {
+			log_err("Error during accept with %d, %s", ec, ec.message());
+			break;
+		}
 
-    ConnTypePtr new_conn = std::make_shared<ConnType>(sock_ptr, *this);
-    conn_add(new_conn);
+		boost::system::error_code ignore_ec;
+		std::stringstream output;
+		auto remote = sock_ptr->remote_endpoint(ignore_ec);
+		if (ignore_ec) {
+			log_err("get remote info failed:%d, %s", ignore_ec, ignore_ec.message());
+			break;
+		}
 
-    new_conn->start();
+		output << "Client Info-> " << remote.address() << ":" << remote.port();
+		log_debug(output.str().c_str());
+
+		if (!conf_.get_http_service_token()) {
+			log_err("request http service token failed, enabled: %s, speed: %ld", conf_.http_service_enabled_ ? "true" : "false", conf_.http_service_speed_);
+
+			sock_ptr->shutdown(boost::asio::socket_base::shutdown_both, ignore_ec);
+			sock_ptr->close(ignore_ec);
+			break;
+		}
+
+		ConnTypePtr new_conn = std::make_shared<ConnType>(sock_ptr, *this);
+		conn_add(new_conn);
+
+		new_conn->start();
+
+	} while (0);
 
     // 再次启动接收异步请求
     do_accept();

@@ -18,19 +18,19 @@ bool SqlConn::init(int64_t conn_uuid,  const SqlConnPoolHelper& helper) {
 
         std::stringstream output;
         output << "# " << driver_->getName() << ", version ";
-		output << driver_->getMajorVersion() << "." << driver_->getMinorVersion();
+        output << driver_->getMajorVersion() << "." << driver_->getMinorVersion();
         output << "." << driver_->getPatchVersion() << endl;
         log_info("Driver info: %s", output.str().c_str());
 
-		sql::ConnectOptionsMap connection_properties;
-		connection_properties["hostName"] = helper.host_;
-		connection_properties["port"] = helper.port_;
-		connection_properties["userName"] = helper.user_;
-		connection_properties["password"] = helper.passwd_;
-		connection_properties["database"] = helper.db_;
-		connection_properties["OPT_RECONNECT"] = true;
+        sql::ConnectOptionsMap connection_properties;
+        connection_properties["hostName"] = helper.host_;
+        connection_properties["port"] = helper.port_;
+        connection_properties["userName"] = helper.user_;
+        connection_properties["password"] = helper.passwd_;
+        connection_properties["database"] = helper.db_;
+        connection_properties["OPT_RECONNECT"] = true;
 
-		conn_.reset(driver_->connect(connection_properties));
+        conn_.reset(driver_->connect(connection_properties));
         stmt_.reset(conn_->createStatement());
     }
     catch (sql::SQLException &e) {
@@ -86,7 +86,7 @@ sql::ResultSet* SqlConn::sqlconn_execute_query(const string& sql) {
 
     sql::ResultSet* result = NULL;
 
-	try {
+    try {
 
         if(!conn_->isValid()) {
             log_err("Invalid connect, do re-connect...");

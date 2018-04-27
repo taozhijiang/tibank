@@ -15,6 +15,7 @@
 #else
 #define override
 #define nullptr (void*)0
+#define noexcept
 #endif
 
 #ifdef NP_DEBUG
@@ -43,8 +44,8 @@ using std::string;
 #include <boost/asio.hpp>
 using namespace boost::asio;
 
-typedef std::shared_ptr<ip::tcp::socket> 	SocketPtr;
-typedef std::weak_ptr<ip::tcp::socket>   	SocketWeakPtr;
+typedef std::shared_ptr<ip::tcp::socket>    SocketPtr;
+typedef std::weak_ptr<ip::tcp::socket>      SocketWeakPtr;
 
 typedef boost::asio::posix::stream_descriptor asio_fd;
 typedef std::shared_ptr<boost::asio::posix::stream_descriptor> asio_fd_shared_ptr;

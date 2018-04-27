@@ -10,9 +10,9 @@ enum ConnStat {
 };
 
 enum ShutdownType {
-	kShutdownSend = 1,
-	kShutdownRecv = 2,
-	kShutdownBoth = 3,
+    kShutdownSend = 1,
+    kShutdownRecv = 2,
+    kShutdownBoth = 3,
 };
 
 class ConnIf {
@@ -22,7 +22,7 @@ public:
     /// Construct a connection with the given socket.
     explicit ConnIf(std::shared_ptr<ip::tcp::socket> sock_ptr):
         conn_stat_(kConnPending), was_cancelled_(false),
-		sock_ptr_(sock_ptr) {
+        sock_ptr_(sock_ptr) {
         set_tcp_nonblocking(false);
     }
 
@@ -62,44 +62,44 @@ public:
     void sock_shutdown(enum ShutdownType s) {
 
         boost::system::error_code ignore_ec;
-		if (s == kShutdownSend) {
-			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_send, ignore_ec);
-		} else if (s == kShutdownRecv) {
-			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_receive, ignore_ec);
-		} else if (s == kShutdownBoth) {
-			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_both, ignore_ec);
-		}
+        if (s == kShutdownSend) {
+            sock_ptr_->shutdown(boost::asio::socket_base::shutdown_send, ignore_ec);
+        } else if (s == kShutdownRecv) {
+            sock_ptr_->shutdown(boost::asio::socket_base::shutdown_receive, ignore_ec);
+        } else if (s == kShutdownBoth) {
+            sock_ptr_->shutdown(boost::asio::socket_base::shutdown_both, ignore_ec);
+        }
     }
 
-	void sock_cancel() {
-		boost::system::error_code ignore_ec;
-		sock_ptr_->cancel(ignore_ec);
-	}
+    void sock_cancel() {
+        boost::system::error_code ignore_ec;
+        sock_ptr_->cancel(ignore_ec);
+    }
 
-	void sock_close() {
-		boost::system::error_code ignore_ec;
-		sock_ptr_->close(ignore_ec);
-	}
+    void sock_close() {
+        boost::system::error_code ignore_ec;
+        sock_ptr_->close(ignore_ec);
+    }
 
-	bool was_ops_cancelled() {
-		return was_cancelled_;
-	}
+    bool was_ops_cancelled() {
+        return was_cancelled_;
+    }
 
-	bool ops_cancel() {
+    bool ops_cancel() {
 
-		was_cancelled_ = true;
-		sock_cancel();
-		set_conn_stat(ConnStat::kConnError);
+        was_cancelled_ = true;
+        sock_cancel();
+        set_conn_stat(ConnStat::kConnError);
 
-		return was_cancelled_;
-	}
+        return was_cancelled_;
+    }
 
     enum ConnStat get_conn_stat() { return conn_stat_; }
     void set_conn_stat(enum ConnStat stat) { conn_stat_ = stat; }
 
 private:
     enum ConnStat conn_stat_;
-	bool was_cancelled_;
+    bool was_cancelled_;
 
 protected:
     std::shared_ptr<ip::tcp::socket> sock_ptr_;
