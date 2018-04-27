@@ -41,7 +41,7 @@ public:
 
     bool parse_request_header(const char* header_ptr) {
         if (!header_ptr || !strlen(header_ptr) || !strstr(header_ptr, "\r\n\r\n")) {
-            log_err( "Check raw header package failed ...");
+            log_err( "check raw header package failed ...");
             return false;
         }
 

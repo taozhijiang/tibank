@@ -21,8 +21,7 @@ public:
 
     /// Construct a connection with the given socket.
     explicit ConnIf(std::shared_ptr<ip::tcp::socket> sock_ptr):
-        conn_stat_(kConnPending), was_cancelled_(false),
-        sock_ptr_(sock_ptr) {
+        conn_stat_(kConnPending), sock_ptr_(sock_ptr) {
         set_tcp_nonblocking(false);
     }
 
@@ -81,25 +80,11 @@ public:
         sock_ptr_->close(ignore_ec);
     }
 
-    bool was_ops_cancelled() {
-        return was_cancelled_;
-    }
-
-    bool ops_cancel() {
-
-        was_cancelled_ = true;
-        sock_cancel();
-        set_conn_stat(ConnStat::kConnError);
-
-        return was_cancelled_;
-    }
-
     enum ConnStat get_conn_stat() { return conn_stat_; }
     void set_conn_stat(enum ConnStat stat) { conn_stat_ = stat; }
 
 private:
     enum ConnStat conn_stat_;
-    bool was_cancelled_;
 
 protected:
     std::shared_ptr<ip::tcp::socket> sock_ptr_;

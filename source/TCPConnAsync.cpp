@@ -11,6 +11,8 @@ extern int default_http_get_handler(const HttpParser& http_parser, std::string& 
 TCPConnAsync::TCPConnAsync(std::shared_ptr<ip::tcp::socket> p_socket,
                            HttpServer& server):
     ConnIf(p_socket),
+    was_cancelled_(false),
+    ops_cancel_mutex_(),
     ops_cancel_timer_(),
     http_server_(server),
     http_parser_(),
@@ -28,6 +30,11 @@ TCPConnAsync::TCPConnAsync(std::shared_ptr<ip::tcp::socket> p_socket,
     p_buffer_ = std::make_shared<std::vector<char> >(16*1024, 0);
     p_write_  = std::make_shared<std::vector<char> >(16*1024, 0);
 
+}
+
+TCPConnAsync::~TCPConnAsync() {
+    http_server_.conn_drop(this);
+    log_debug("TCPConnAsync SOCKET RELEASED!!!");
 }
 
 void TCPConnAsync::start() override {
@@ -192,9 +199,11 @@ write_return:
 
     // If HTTP 1.0 or HTTP 1.1 without Keep-Alived, close the connection directly
     // Else, trigger the next generation read again!
-    start();   // 算了，强制一个读操作，从而可以引发其错误处理
 
-    return;
+    // 算了，强制一个读操作，从而可以引发其错误处理
+    if (keep_continue()) {
+        return start();
+    }
 }
 
 void TCPConnAsync::do_read_body() {
@@ -269,12 +278,16 @@ void TCPConnAsync::read_body_handler(const boost::system::error_code& ec, size_t
     // default, OK
     // go through write return;
 
-    // write_return:
+ // write_return:
     do_write();
 
-    // 同上
-    start();
-    return;
+    // If HTTP 1.0 or HTTP 1.1 without Keep-Alived, close the connection directly
+    // Else, trigger the next generation read again!
+
+    // 算了，强制一个读操作，从而可以引发其错误处理
+    if (keep_continue()) {
+        return start();
+    }
 }
 
 
@@ -425,7 +438,30 @@ bool TCPConnAsync::handle_socket_ec(const boost::system::error_code& ec ) {
     return close_socket;
 }
 
+// 测试方法 while:; do echo -e "GET / HTTP/1.1\nhost: test.domain\n\n"; sleep 3; done | telnet 127.0.0.1 8899
+bool TCPConnAsync::keep_continue() {
+
+    std::string connection =  http_parser_.find_request_header(http_proto::header_options::connection);
+    if (!connection.empty()) {
+        if (boost::iequals(connection, "Close")) {
+            return false;
+        } else if (boost::iequals(connection, "Keep-Alive")){
+            return true;
+        } else {
+            log_err("unknown connection value: %s", connection.c_str());
+        }
+    }
+
+    if (http_parser_.get_version() > "1.0" ) {
+        return true;
+    }
+
+    return false;
+}
+
 void TCPConnAsync::set_ops_cancel_timeout() {
+
+    boost::unique_lock<boost::mutex> lock(ops_cancel_mutex_);
 
     if (http_server_.ops_cancel_time_out() == 0){
         safe_assert(!ops_cancel_timer_);
@@ -442,6 +478,8 @@ void TCPConnAsync::set_ops_cancel_timeout() {
 
 void TCPConnAsync::revoke_ops_cancel_timeout() {
 
+    boost::unique_lock<boost::mutex> lock(ops_cancel_mutex_);
+
     boost::system::error_code ignore_ec;
     if (ops_cancel_timer_) {
         ops_cancel_timer_->cancel(ignore_ec);
@@ -452,7 +490,7 @@ void TCPConnAsync::revoke_ops_cancel_timeout() {
 void TCPConnAsync::ops_cancel_timeout_call(const boost::system::error_code& ec) {
 
     if (ec == 0){
-        log_info("ops_cancel_timeout_call called with timeout: %d,", http_server_.ops_cancel_time_out());
+        log_info("ops_cancel_timeout_call called with timeout: %d", http_server_.ops_cancel_time_out());
         ops_cancel();
         sock_shutdown(ShutdownType::kShutdownBoth);
         sock_close();

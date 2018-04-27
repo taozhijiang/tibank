@@ -24,10 +24,7 @@ public:
 
     /// Construct a connection with the given socket.
     TCPConnAsync(std::shared_ptr<ip::tcp::socket> p_socket, HttpServer& server);
-
-    virtual ~TCPConnAsync() {
-        log_debug("TCPConnAsync SOCKET RELEASED!!!");
-    }
+    virtual ~TCPConnAsync();
 
     virtual void start();
     void stop();
@@ -51,9 +48,24 @@ private:
     void do_read_body();
     void read_body_handler(const boost::system::error_code &ec, std::size_t bytes_transferred);
 
-	void set_ops_cancel_timeout();
-	void revoke_ops_cancel_timeout();
+    void set_ops_cancel_timeout();
+    void revoke_ops_cancel_timeout();
+    bool was_ops_cancelled() {
+        boost::unique_lock<boost::mutex> lock(ops_cancel_mutex_);
+        return was_cancelled_;
+    }
+
+    bool ops_cancel() {
+        boost::unique_lock<boost::mutex> lock(ops_cancel_mutex_);
+        sock_cancel();
+        set_conn_stat(ConnStat::kConnError);
+        was_cancelled_ = true;
+        return was_cancelled_;
+    }
     void ops_cancel_timeout_call(const boost::system::error_code& ec);
+
+    // 是否Connection长连接
+    bool keep_continue();
 
     void fill_http_for_send(const char* data, size_t len, const string& status);
     void fill_http_for_send(const string& str, const string& status);
@@ -66,6 +78,8 @@ private:
     // 用于读取HTTP的头部使用
     boost::asio::streambuf request_;   // client request_ read
 
+    bool was_cancelled_;
+    boost::mutex ops_cancel_mutex_;
     std::unique_ptr<boost::asio::deadline_timer> ops_cancel_timer_;
 
 private:

@@ -18,6 +18,10 @@ public:
         return time_;
     }
 
+    void set_expire_time(time_t t) {
+        time_ = t;
+    }
+
     T* get_raw_ptr() {
         return raw_ptr_;
     }
@@ -96,6 +100,7 @@ public:
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter == bucket_items_.end()) {
             log_err("touched item not found!");
+            safe_assert(false);
             return false;
         }
 
@@ -106,8 +111,8 @@ public:
         }
 
         if (time_items_.find(before) == time_items_.end()){
-            safe_assert(false);
             log_err("bucket tm: %ld not found, critical error!", before);
+            safe_assert(false);
             return false;
         }
 
@@ -115,6 +120,8 @@ public:
             time_items_[tm] = std::set<active_item_ptr>();  // create new time bucket
         }
 
+        // 更新原boject
+        iter->second->set_expire_time(tm);
         time_items_[tm].insert(iter->second);
         time_items_[before].erase(iter->second);
         log_debug("touched: %p, %ld -> %ld", ptr.get(), before, tm);
@@ -130,14 +137,14 @@ public:
         boost::unique_lock<boost::mutex> lock(lock_);
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter != bucket_items_.end()) {
-        log_err("Insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
+            log_err("insert item already exists: @ %ld, %p", iter->second->get_expire_time(),
                            iter->second->get_raw_ptr());
             return false;
         }
 
         active_item_ptr alive_item = std::make_shared<AliveItem<T> >(tm, ptr);
         if (!alive_item){
-            log_err("Create AliveItem failed!");
+            log_err("create AliveItem failed!");
             return false;
         }
 
@@ -155,7 +162,14 @@ public:
     bool DROP(std::shared_ptr<T> ptr) { // 此处肯定是shared_ptr的
         boost::unique_lock<boost::mutex> drop_lock(drop_lock_);
 
-        auto result = drop_items_.insert(ptr.get());  // store weak_ptr
+        auto result = drop_items_.insert(ptr.get());  // store raw_ptr
+        return result.second;
+    }
+
+    bool DROP(T* ptr) {
+        boost::unique_lock<boost::mutex> drop_lock(drop_lock_);
+
+        auto result = drop_items_.insert(ptr);  // store raw_ptr
         return result.second;
     }
 
@@ -195,15 +209,17 @@ public:
                 for (; it != iter->second.end(); ++it) {
                     T* p = (*it)->get_raw_ptr();
                     if (bucket_items_.find(p) == bucket_items_.end()) {
-                        safe_assert(false);
                         log_err("bucket item: %p not found, critical error!", p);
+                        safe_assert(false);
                     }
 
                     log_debug("bucket item remove: %p, %ld", p, (*it)->get_expire_time());
                     bucket_items_.erase(p);
                     std::weak_ptr<T> weak_item = (*it)->get_weak_ptr();
                     if (std::shared_ptr<T> ptr = weak_item.lock()) {
-                        func_(ptr);
+                        if (func_) {
+                           func_(ptr);
+                        }
                     } else {
                         log_debug("item %p may already release before ...", p);
                     }
@@ -239,8 +255,8 @@ public:
         }
         log_debug("current alived hashed count:%ld, timed_count: %ld", bucket_items_.size(), total_count);
         if (bucket_items_.size() != total_count) {
-            safe_assert(false);
             log_err("mismatch item count, bug count:%ld, timed_count: %ld", bucket_items_.size(), total_count);
+            safe_assert(false);
         }
     }
 
@@ -255,8 +271,8 @@ private:
         do {
             auto bucket_iter = bucket_items_.find(p);
             if (bucket_iter == bucket_items_.end()) {
-                safe_assert(false);
                 log_err("bucket item: %p not found, critical error!", p);
+                safe_assert(false);
                 break;
             }
 
@@ -268,8 +284,8 @@ private:
 
             auto time_iter = time_items_.find(active_item->get_expire_time());
             if (time_iter == time_items_.end()) {
-                safe_assert(false);
                 log_err("time slot: %ld not found, critical error!", active_item->get_expire_time());
+                safe_assert(false);
                 bucket_items_.erase(bucket_iter);  // remove it anyway
                 break;
             }
@@ -277,8 +293,8 @@ private:
             std::set<active_item_ptr>& time_set = time_iter->second;
             auto time_item_iter = time_set.find(active_item);
             if (time_item_iter == time_set.end()) {
-                safe_assert(false);
                 log_err("time item not found, critical error!");
+                safe_assert(false);
                 bucket_items_.erase(bucket_iter);
                 break;
             }
@@ -291,8 +307,8 @@ private:
 
         auto weak_real = active_item->get_weak_ptr();
         if (std::shared_ptr<T> ptr = weak_real.lock()) { // bad!!!
-            safe_assert(false);
             log_err("active remove item should not shared, bug...");
+            safe_assert(false);
             func_(ptr);
         }
     }

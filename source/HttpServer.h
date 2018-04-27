@@ -29,7 +29,7 @@ typedef std::weak_ptr<ConnType>   ConnTypeWeakPtr;
 class HttpServer;
 class HttpConf {
 
-	friend class HttpServer;
+    friend class HttpServer;
 
 private:
     std::string              docu_root_;
@@ -40,33 +40,33 @@ private:
 
     int ops_cancel_time_out_;  // sec 会话超时自动取消ops
 
-	boost::mutex      lock_;
-	bool    		  http_service_enabled_;  // 服务开关
-	int64_t           http_service_speed_;
-	volatile int64_t  http_service_token_;
+    boost::mutex      lock_;
+    bool              http_service_enabled_;  // 服务开关
+    int64_t           http_service_speed_;
+    volatile int64_t  http_service_token_;
 
-	bool get_http_service_token() {
-		boost::unique_lock<boost::mutex> lock(lock_);
-		if (http_service_speed_ == 0) // 没有限流
-			return true;
+    bool get_http_service_token() {
+        boost::unique_lock<boost::mutex> lock(lock_);
+        if (http_service_speed_ == 0) // 没有限流
+            return true;
 
-		if (http_service_token_ <= 0)
-			return false;
+        if (http_service_token_ <= 0)
+            return false;
 
-		-- http_service_token_;
-		return true;
-	}
+        -- http_service_token_;
+        return true;
+    }
 
 
-	void withdraw_http_service_token() { 	// 支持将令牌还回去
-		boost::unique_lock<boost::mutex> lock(lock_);
-		++ http_service_token_;
-	}
+    void withdraw_http_service_token() {    // 支持将令牌还回去
+        boost::unique_lock<boost::mutex> lock(lock_);
+        ++ http_service_token_;
+    }
 
-	void feed_http_service_token(){
-		boost::unique_lock<boost::mutex> lock(lock_);
-		http_service_token_ = http_service_speed_;
-	}
+    void feed_http_service_token(){
+        boost::unique_lock<boost::mutex> lock(lock_);
+        http_service_token_ = http_service_speed_;
+    }
 };
 
 class HttpServer : public boost::noncopyable,
@@ -124,6 +124,14 @@ public:
 
     void conn_touch(ConnTypePtr p_conn) {
         conns_alive_.TOUCH(p_conn);
+    }
+
+    void conn_drop(ConnTypePtr p_conn) {
+        conns_alive_.DROP(p_conn);
+    }
+
+    void conn_drop(ConnType* ptr) {
+        conns_alive_.DROP(ptr);
     }
 
     int conn_destroy(ConnTypePtr p_conn) {
