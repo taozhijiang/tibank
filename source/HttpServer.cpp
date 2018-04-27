@@ -7,7 +7,6 @@
 #include "HttpHandler.h"
 #include "Utils.h"
 #include "SrvManager.h"
-#include "TimerService.h"
 
 #include "Log.h"
 #include "HttpServer.h"
@@ -17,66 +16,103 @@ static size_t bucket_hash_index_call(const std::shared_ptr<ConnType>& ptr) {
     return std::hash<ConnType *>()(ptr.get());
 }
 
-HttpServer::HttpServer(const std::string& address, unsigned short port, size_t c_cz, std::string docu_root) :
+HttpServer::HttpServer(const std::string& address, unsigned short port, size_t t_size) :
     io_service_(),
     ep_(ip::tcp::endpoint(ip::address::from_string(address), port)),
     acceptor_(io_service_, ep_),
-	docu_root_(docu_root),
-	docu_index_({"index.html", "index.htm", "index.xhtml"}),
-    conns_(bucket_size_, bucket_hash_index_call),
-	pending_to_remove_(),
-	conns_alive_(),
-	conn_remove_threads_(1),
-    io_service_threads_(static_cast<uint8_t>(c_cz)) {
+    conf_({}),
+    conns_alive_("TcpConnAsync"),
+    io_service_threads_(static_cast<uint8_t>(t_size)) {
 
-    acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
-    acceptor_.listen();
-
-    do_accept();
 }
 
 bool HttpServer::init() {
 
-	if (!conns_.init()) {
-		log_err("Init net_conns_ BucketSet failed!");
-		return false;
-	}
-
-	if (!io_service_threads_.init_threads(boost::bind(&HttpServer::io_service_run, shared_from_this(), _1))) {
-		log_err("HttpServer::io_service_run init task failed!");
-		return false;
-	}
-
-	if (!conn_remove_threads_.init_threads(boost::bind(&HttpServer::conn_remove_run, shared_from_this(), _1))) {
-		log_err("HttpServer::net_conn_remove_run init task failed!");
-		return false;
-	}
-
-	// customize route uri handler
-	register_http_post_handler("/submit", http_handler::submit_handler);
-	register_http_post_handler("/query", http_handler::query_handler);
-
-    register_http_post_handler("/batch_submit", http_handler::batch_submit_handler);
-	register_http_post_handler("/batch_query", http_handler::batch_query_handler);
-
-
-    // add purge task
-	int conn_time_out = 0;
-	int conn_time_linger = 0;
-	if (!get_config_value("http.conn_time_out", conn_time_out) || !get_config_value("http.conn_time_linger", conn_time_linger) ){
-        log_err("Error, get value error");
+    if (!get_config_value("http.docu_root", conf_.docu_root_)) {
+        log_err("get http.docu_root failed!");
         return false;
     }
-	log_debug("socket conn time_out: %ds, linger: %ds", conn_time_out, conn_time_linger);
-    conns_alive_.init(boost::bind(&HttpServer::conn_pend_remove, this, _1),
-									conn_time_out, conn_time_linger);
 
-    if (TimerService::instance().register_timer_task(
-                                    boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_),
-                                    5*1000, true, false) == 0) {
-		log_err("Register alive purge task failed!");
-		return false;
-	}
+    std::string docu_index;
+    if (!get_config_value("http.docu_index", docu_index)) {
+        log_err("get http.docu_index failed!");
+        return false;
+    }
+    std::vector<std::string> vec {};
+    boost::split(vec, docu_index, boost::is_any_of(";"));
+    for (auto iter = vec.begin(); iter != vec.cend(); ++ iter){
+        std::string tmp = boost::trim_copy(*iter);
+        if (tmp.empty())
+            continue;
+
+        conf_.docu_index_.push_back(tmp);
+    }
+    if (conf_.docu_index_.empty()) {
+        log_err("empty valid docu_index found, previous: %s", docu_index.c_str());
+        return false;
+    }
+
+    if (!get_config_value("http.conn_time_out", conf_.conn_time_out_) ||
+        !get_config_value("http.conn_time_out_linger", conf_.conn_time_out_linger_)) {
+        log_err("get http conn_time_out & linger configure value error, using default.");
+        conf_.conn_time_out_ = 5 * 60;
+        conf_.conn_time_out_linger_ = 10;
+    }
+
+    log_debug("socket/session conn time_out: %ds, linger: %ds", conf_.conn_time_out_, conf_.conn_time_out_linger_);
+    conns_alive_.init(boost::bind(&HttpServer::conn_destroy, this, _1),
+                                  conf_.conn_time_out_, conf_.conn_time_out_linger_);
+
+    if (!get_config_value("http.ops_cancel_time_out", conf_.ops_cancel_time_out_)){
+        log_err("get http ops_cancel_time_out configure value error, using default.");
+        conf_.ops_cancel_time_out_ = 0;
+    }
+    if (conf_.ops_cancel_time_out_ < 0) {
+        conf_.ops_cancel_time_out_ = 0;
+    }
+    log_debug("socket/session conn cancel time_out: %d, enabled: %s", conf_.ops_cancel_time_out_,
+              conf_.ops_cancel_time_out_ > 0 ? "true" : "false");
+
+    if (!get_config_value("http.service_enable", conf_.http_service_enabled_) ||
+        !get_config_value("http.service_speed", conf_.http_service_speed_)){
+        log_err("get http service enable/speed configure value error, using default.");
+        conf_.http_service_enabled_ = true;
+        conf_.http_service_speed_ = 0;
+    }
+    if (conf_.http_service_speed_ < 0) {
+        conf_.http_service_speed_ = 0;
+    }
+
+    if (conf_.http_service_speed_ && (register_timer_task( boost::bind(&HttpConf::feed_http_service_token, &conf_), 5*1000, true, true) == 0) ) {
+        log_err("register http token feed task failed!");
+        return false;
+    }
+    log_debug("http service enabled: %s, speed: %ld", conf_.http_service_enabled_ ? "true" : "false",
+              conf_.http_service_speed_);
+
+
+
+    if (!io_service_threads_.init_threads(boost::bind(&HttpServer::io_service_run, shared_from_this(), _1))) {
+        log_err("HttpServer::io_service_run init task failed!");
+        return false;
+    }
+
+
+    // customize route uri handler
+    register_http_post_handler("/submit", http_handler::submit_handler);
+    register_http_post_handler("/query", http_handler::query_handler);
+
+    register_http_post_handler("/batch_submit", http_handler::batch_submit_handler);
+    register_http_post_handler("/batch_query", http_handler::batch_query_handler);
+
+    register_http_get_handler("/test", http_handler::get_test_handler);
+    register_http_post_handler("/test", http_handler::post_test_handler);
+
+
+    if (register_timer_task( boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_), 5*1000, true, false) == 0) {
+        log_err("Register alive conn purge task failed!");
+        return false;
+    }
 
     return true;
 }
@@ -85,22 +121,22 @@ bool HttpServer::init() {
 // main task loop
 void HttpServer::io_service_run(ThreadObjPtr ptr) {
 
-	std::stringstream ss_id;
-	ss_id << boost::this_thread::get_id();
-	log_info("HttpServer io_service thread %s is about to work... ", ss_id.str().c_str());
+    std::stringstream ss_id;
+    ss_id << boost::this_thread::get_id();
+    log_info("HttpServer io_service thread %s is about to work... ", ss_id.str().c_str());
 
     while (true) {
 
-		if (unlikely(ptr->status_ == ThreadStatus::kThreadTerminating)) {
-			log_err("Thread %s is about to terminating...", ss_id.str().c_str());
-			break;
-		}
+        if (unlikely(ptr->status_ == ThreadStatus::kThreadTerminating)) {
+            log_err("Thread %s is about to terminating...", ss_id.str().c_str());
+            break;
+        }
 
-		// 线程启动
-		if (unlikely(ptr->status_ == ThreadStatus::kThreadSuspend)) {
-			::usleep(1*1000*1000);
-			continue;
-		}
+        // 线程启动
+        if (unlikely(ptr->status_ == ThreadStatus::kThreadSuspend)) {
+            ::usleep(1*1000*1000);
+            continue;
+        }
 
         boost::system::error_code ec;
         io_service_.run(ec);
@@ -111,10 +147,18 @@ void HttpServer::io_service_run(ThreadObjPtr ptr) {
         }
     }
 
-	ptr->status_ = ThreadStatus::kThreadDead;
-	log_info("HttpServer io_service thread %s is about to terminate ... ", ss_id.str().c_str());
+    ptr->status_ = ThreadStatus::kThreadDead;
+    log_info("HttpServer io_service thread %s is about to terminate ... ", ss_id.str().c_str());
 
-	return;
+    return;
+}
+
+void HttpServer::service() {
+
+    acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
+    acceptor_.listen();
+
+    do_accept();
 }
 
 void HttpServer::do_accept() {
@@ -127,20 +171,38 @@ void HttpServer::do_accept() {
 
 void HttpServer::accept_handler(const boost::system::error_code& ec, SocketPtr sock_ptr) {
 
-    if (ec) {
-        log_err("Error during accept!");
-        return;
-    }
+    do {
 
-    std::stringstream output;
-    output << "Client Info: " << sock_ptr->remote_endpoint().address() << "/" <<
-        sock_ptr->remote_endpoint().port();
-	log_debug(output.str().c_str());
+        if (ec) {
+            log_err("Error during accept with %d, %s", ec, ec.message());
+            break;
+        }
 
-    ConnTypePtr new_conn = std::make_shared<ConnType>(sock_ptr, *this);
-	conn_add(new_conn);
+        boost::system::error_code ignore_ec;
+        std::stringstream output;
+        auto remote = sock_ptr->remote_endpoint(ignore_ec);
+        if (ignore_ec) {
+            log_err("get remote info failed:%d, %s", ignore_ec, ignore_ec.message());
+            break;
+        }
 
-    new_conn->start();
+        output << "Client Info-> " << remote.address() << ":" << remote.port();
+        log_debug(output.str().c_str());
+
+        if (!conf_.get_http_service_token()) {
+            log_err("request http service token failed, enabled: %s, speed: %ld", conf_.http_service_enabled_ ? "true" : "false", conf_.http_service_speed_);
+
+            sock_ptr->shutdown(boost::asio::socket_base::shutdown_both, ignore_ec);
+            sock_ptr->close(ignore_ec);
+            break;
+        }
+
+        ConnTypePtr new_conn = std::make_shared<ConnType>(sock_ptr, *this);
+        conn_add(new_conn);
+
+        new_conn->start();
+
+    } while (0);
 
     // 再次启动接收异步请求
     do_accept();
@@ -216,65 +278,9 @@ int HttpServer::find_http_get_handler(std::string uri, HttpGetHandler& handler){
 
 int HttpServer::io_service_stop_graceful() {
 
-	log_err("About to stop io_service... ");
-	io_service_.stop();
-	io_service_threads_.graceful_stop_threads();
+    log_err("About to stop io_service... ");
+    io_service_.stop();
+    io_service_threads_.graceful_stop_threads();
 
-	return 0;
-}
-
-// main task loop
-void HttpServer::conn_remove_run(ThreadObjPtr ptr) {
-
-	std::stringstream ss_id;
-	ss_id << boost::this_thread::get_id();
-	log_info("HttpServer net_conn_remove thread %s is about to work... ", ss_id.str().c_str());
-
-    while (true) {
-
-		if (unlikely(ptr->status_ == ThreadStatus::kThreadTerminating)) {
-			if (pending_to_remove_.EMPTY()) {
-				log_debug("net_conn_remove queue is empty, safe terminate");
-				break;
-			}
-		}
-
-		// 线程启动
-		if (unlikely(ptr->status_ == ThreadStatus::kThreadSuspend)) {
-			::usleep(1*1000*1000);
-			continue;
-		}
-
-		ConnTypeWeakPtr net_conn_weak_ptr;
-		if (!pending_to_remove_.POP(net_conn_weak_ptr, 3 * 1000 /*3s*/)) {
-			//log_debug("net_conn remove timeout return!");
-			continue;
-		}
-
-		if (ConnTypePtr shared_conn_ptr = net_conn_weak_ptr.lock()) {
-			if (shared_conn_ptr->get_conn_stat() != ConnStat::kConnError) {
-				log_err("Warning, remove unerror conn: %d", shared_conn_ptr->get_conn_stat());
-			}
-
-			// log_debug("do remove ... ");
-			conns_.ERASE(shared_conn_ptr);
-		}
-
-		// log_info("Current net_conns_ size: %ld ", net_conns_.SIZE());
-
-    }
-
-	ptr->status_ = ThreadStatus::kThreadDead;
-	log_info("HttpServer net_conn_remove thread %s is about to terminate ... ", ss_id.str().c_str());
-
-	return;
-}
-
-
-int HttpServer::conn_remove_stop_graceful() {
-
-	log_err("about to stop net_conn_remove thread ... ");
-	conn_remove_threads_.graceful_stop_threads();
-
-	return 0;
+    return 0;
 }

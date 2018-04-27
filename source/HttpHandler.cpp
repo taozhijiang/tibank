@@ -454,12 +454,12 @@ error_ret:
 }
 
 
-static const std::string& get_document_root() {
-    return SrvManager::instance().http_server_ptr_->get_document_root();
+static const std::string& document_root() {
+    return SrvManager::instance().http_server_ptr_->document_root();
 }
 
-static const std::vector<std::string>& get_document_index() {
-    return SrvManager::instance().http_server_ptr_->get_document_index();
+static const std::vector<std::string>& document_index() {
+    return SrvManager::instance().http_server_ptr_->document_index();
 }
 
 static bool check_and_sendfile(const HttpParser& http_parser, std::string regular_file_path,
@@ -499,7 +499,7 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 		log_err("Default handler just for static file transmit, we can not handler uri parameters...");
 	}
 
-	std::string real_file_path = get_document_root() + "/" + http_parser.find_request_header(http_proto::header_options::request_path_info);
+	std::string real_file_path = document_root() + "/" + http_parser.find_request_header(http_proto::header_options::request_path_info);
 
 	// check dest exist?
 	if (::access(real_file_path.c_str(), R_OK) != 0) {
@@ -526,7 +526,7 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 		case S_IFDIR:
 			{
 				bool OK = false;
-				const std::vector<std::string> &indexes = get_document_index();
+				const std::vector<std::string> &indexes = document_index();
 				for (std::vector<std::string>::const_iterator iter = indexes.cbegin(); iter != indexes.cend(); ++iter) {
 					std::string file_path = real_file_path + "/" + *iter;
 					log_info("Trying: %s", file_path.c_str());
@@ -547,6 +547,25 @@ int default_http_get_handler(const HttpParser& http_parser, std::string& respons
 		default:
 			break;
 	}
+
+	return 0;
+}
+
+
+
+int get_test_handler(const HttpParser& http_parser, std::string& response, string& status_line) {
+
+	response = http_proto::content_ok;
+	status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
+
+	return 0;
+}
+
+
+int post_test_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
+
+	response = post_data;
+	status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
 
 	return 0;
 }

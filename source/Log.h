@@ -19,12 +19,12 @@ static const std::size_t MAX_LOG_BUF_SIZE = (16*1024 -2);
 
 class Log {
 public:
-	static Log& instance();
-	bool init(int log_level);
+    static Log& instance();
+    bool init(int log_level);
 
-	~Log() {
+    ~Log() {
         closelog();
-	}
+    }
 
 private:
     int get_time_prefix(char *buf, int size);

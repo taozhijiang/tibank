@@ -1,7 +1,10 @@
 #ifndef _TiBANK_UTILS_H_
 #define _TiBANK_UTILS_H_
 
+#include <memory>
 #include <string>
+
+#include <boost/function.hpp>
 
 void backtrace_init();
 int set_nonblocking(int fd);
@@ -19,30 +22,27 @@ std::string convert_to_string(const T& arg) {
     }
 }
 
-#include "ConnPool.h"
-#include "SqlConn.h"
-#include "RedisConn.h"
-#include "SrvManager.h"
+// SQL connection pool
+class SqlConn;
+typedef std::shared_ptr<SqlConn> sql_conn_ptr;
 
-static inline bool request_scoped_sql_conn(sql_conn_ptr& conn) {
-    return SrvManager::instance().sql_pool_ptr_->request_scoped_conn(conn);
-}
+bool request_scoped_sql_conn(sql_conn_ptr& conn);
+sql_conn_ptr request_sql_conn();
+sql_conn_ptr try_request_sql_conn(size_t msec);
+void free_sql_conn(sql_conn_ptr conn);
 
-static inline sql_conn_ptr request_sql_conn() {
-    return SrvManager::instance().sql_pool_ptr_->request_conn();
-}
 
-static inline sql_conn_ptr try_request_sql_conn(size_t msec) {
-    return SrvManager::instance().sql_pool_ptr_->try_request_conn(msec);
-}
+// Redis connection pool
+class RedisConn;
+typedef std::shared_ptr<RedisConn> redis_conn_ptr;
 
-static inline void free_sql_conn(sql_conn_ptr conn) {
-    SrvManager::instance().sql_pool_ptr_->free_conn(conn);
-}
+bool request_scoped_redis_conn(redis_conn_ptr& conn);
 
-static inline bool request_scoped_redis_conn(redis_conn_ptr& conn) {
-    return SrvManager::instance().redis_pool_ptr_->request_scoped_conn(conn);
-}
+
+// Timer Task helper
+typedef boost::function<void ()> TimerEventCallable;
+int64_t register_timer_task(TimerEventCallable func, int64_t msec, bool persist = true, bool fast = true);
+int64_t revoke_timer_task(int64_t index);
 
 #include <libconfig.h++>
 

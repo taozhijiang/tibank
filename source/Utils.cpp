@@ -2,7 +2,7 @@
 
 #include "General.h"
 #include "Utils.h"
-#include "MqConn.h"
+#include "Log.h"
 
 static void backtrace_info(int sig, siginfo_t *info, void *f) {
     int j, nptrs;
@@ -57,7 +57,7 @@ int set_nonblocking(int fd) {
     int flags = 0;
 
     flags = fcntl (fd, F_GETFL, 0);
-	flags |= O_NONBLOCK;
+    flags |= O_NONBLOCK;
     fcntl (fd, F_SETFL, flags);
 
     return 0;
@@ -86,6 +86,43 @@ bool sys_config_init(const std::string& config_file) {
     return true;
 }
 
+#include "ConnPool.h"
+#include "SqlConn.h"
+#include "SrvManager.h"
+
+bool request_scoped_sql_conn(sql_conn_ptr& conn) {
+    return SrvManager::instance().sql_pool_ptr_->request_scoped_conn(conn);
+}
+
+sql_conn_ptr request_sql_conn() {
+    return SrvManager::instance().sql_pool_ptr_->request_conn();
+}
+
+sql_conn_ptr try_request_sql_conn(size_t msec) {
+    return SrvManager::instance().sql_pool_ptr_->try_request_conn(msec);
+}
+
+void free_sql_conn(sql_conn_ptr conn) {
+    return SrvManager::instance().sql_pool_ptr_->free_conn(conn);
+}
+
+#include "RedisConn.h"
+bool request_scoped_redis_conn(redis_conn_ptr& conn) {
+    return SrvManager::instance().redis_pool_ptr_->request_scoped_conn(conn);
+}
+
+#include "TimerService.h"
+int64_t register_timer_task(TimerEventCallable func, int64_t msec, bool persist, bool fast) {
+    return TimerService::instance().register_timer_task(func, msec, persist, fast);
+}
+
+int64_t revoke_timer_task(int64_t index) {
+    return TimerService::instance().revoke_timer_task(index);
+}
+
+
+
+#include "MqConn.h"
 
 int tz_mq_test() {
 
@@ -109,10 +146,10 @@ int tz_mq_test() {
 
     MqConnPoolHelper mq_helper(realVec, "paybank_exchange", "mqpooltest", "mqtest");
     mq_pool_ptr_.reset(new ConnPool<MqConn, MqConnPoolHelper>("MqPool", 7, mq_helper, 5*60 /*5min*/));
-	if (!mq_pool_ptr_ || !mq_pool_ptr_->init()) {
-		log_err("Init RabbitMqConnPool failed!");
-		return false;
-	}
+    if (!mq_pool_ptr_ || !mq_pool_ptr_->init()) {
+        log_err("Init RabbitMqConnPool failed!");
+        return false;
+    }
 
     std::string msg = "TAOZJFSFiMSG";
     std::string outmsg;

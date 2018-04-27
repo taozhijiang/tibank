@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "Log.h"
+
 // 传输信息
 enum TransResponseCode {
     kTransResponseOK = 0,
@@ -15,7 +17,7 @@ enum TransStatus {
     kTransSubmitFail = 1,
     kTransSuccess = 2,
     kTransFail = 3,
-	kTransInProcess = 4,
+    kTransInProcess = 4,
     kTransNotFound = 5,
     kTransNonsense = 6,
 };
@@ -168,17 +170,17 @@ inline void get_db_table_index(std::string trans_id, int& tb1, int& tb2) {
     if (trans_id.size() >= 2 && CHECK_CHAR(trans_id[trans_id.size()-1]) && CHECK_CHAR(trans_id[trans_id.size()-2])) {
         tb1 = trans_id[trans_id.size()-2] - '0';
         tb2 = trans_id[trans_id.size()-1] - '0';
-	} else {
-		log_err("Invalid strPartnerOrderId %s ", trans_id.c_str());
-		tb1 = 0; tb2 = 0;
-	}
+    } else {
+        log_err("Invalid strPartnerOrderId %s ", trans_id.c_str());
+        tb1 = 0; tb2 = 0;
+    }
 }
 
 inline int get_db_table_index(std::string trans_id) {
 
     if (trans_id.size() >= 2 && CHECK_CHAR(trans_id[trans_id.size()-1]) && CHECK_CHAR(trans_id[trans_id.size()-2])) {
         return 0;
-	}
+    }
 
     return (trans_id[trans_id.size()-2] - '0')*10 + (trans_id[trans_id.size()-1] - '0');
 }

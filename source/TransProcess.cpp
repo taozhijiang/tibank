@@ -2,10 +2,10 @@
 
 #include "SignHelper.h"
 #include "Utils.h"
+#include "SqlConn.h"
 #include "TransProcess.h"
 #include "TransProcessTask.h"
 #include "Log.h"
-#include "SrvManager.h"
 
 #include "json/json.h"
 
@@ -58,7 +58,7 @@ std::string get_trans_error_str(int code) {
             ret = "余额不足";
             break;
         case kTransAmountErr:
-            ret = "金额超额";
+            ret = "金额超额(随便说的)";
             break;
         case kTransSystemErr:
             ret = "系统内部错误";

@@ -5,18 +5,18 @@
 #include "Log.h"
 
 enum ThreadStatus {
-	kThreadInit = 1,
-	kThreadRunning = 2,
-	kThreadSuspend = 3,
-	kThreadTerminating = 4,
-	kThreadDead = 5,
+    kThreadInit = 1,
+    kThreadRunning = 2,
+    kThreadSuspend = 3,
+    kThreadTerminating = 4,
+    kThreadDead = 5,
 };
 
 struct ThreadObj {
-	ThreadObj(enum ThreadStatus status):
-		status_(status) {
-	}
-	enum ThreadStatus status_;
+    ThreadObj(enum ThreadStatus status):
+        status_(status) {
+    }
+    enum ThreadStatus status_;
 };
 
 const static uint8_t kMaxiumThreadPoolSize = 200;
@@ -26,7 +26,7 @@ typedef std::shared_ptr<ThreadObj>           ThreadObjPtr;
 typedef boost::function<void (ThreadObjPtr)> ThreadRunnable;
 
 class ThreadPool: private boost::noncopyable {
-		// 先于线程工作之前的所有预备工作
+        // 先于线程工作之前的所有预备工作
     class Impl;
     std::unique_ptr<Impl> impl_ptr_;
 

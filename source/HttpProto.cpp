@@ -2,7 +2,11 @@
 using namespace boost::posix_time;
 using namespace boost::gregorian;
 
+#include <sstream>
 #include "HttpProto.h"
+
+
+extern std::string TiBANK_VERSION;
 
 namespace http_proto {
 
@@ -21,7 +25,7 @@ string http_response_generate(const string& content, const string& stat_str) {
 
     // reply fixed header
     headers[0].name = "Server";
-    headers[0].value = "TiStat Server/1.0";
+    headers[0].value = "TiBank Server/" + TiBANK_VERSION;
     headers[1].name = "Date";
     headers[1].value = to_simple_string(second_clock::universal_time());
     headers[2].name = "Content-Length";
@@ -31,8 +35,8 @@ string http_response_generate(const string& content, const string& stat_str) {
     headers[4].name = "Connection";
     headers[4].value = "keep-alive";  // 长连接
     // headers[4].value = "close";  // 短连接
-	headers[5].name = "Cache-Control";
-	headers[5].value = "no-cache";
+    headers[5].name = "Cache-Control";
+    headers[5].value = "no-cache";
     headers[6].name = "Access-Control-Allow-Origin";
     headers[6].value = "*";
 
@@ -56,7 +60,7 @@ string http_response_generate(const char* data, size_t len, const string& stat_s
 
     // reply fixed header
     headers[0].name = "Server";
-    headers[0].value = "TiBank Server/1.0";
+    headers[0].value = "TiBank Server/" + TiBANK_VERSION;
     headers[1].name = "Date";
     headers[1].value = to_simple_string(second_clock::universal_time());
     headers[2].name = "Content-Length";
@@ -81,6 +85,35 @@ string http_response_generate(const char* data, size_t len, const string& stat_s
 
     return str;
 }
+
+
+static std::string get_status_content(enum StatusCode code) {
+    const auto iter = status_code_strings.find(code);
+    if(iter != status_code_strings.end()) {
+        return iter->second;
+    }
+
+    return "";
+}
+
+string http_std_response_generate(const std::string& http_ver, enum StatusCode stat) {
+
+    std::stringstream content_ss;
+    std::string msg = get_status_content(stat);
+
+    content_ss << "<html><head><title>"
+               << msg
+               << "</title></head>"
+               << "<body><h1>"
+               << msg
+               << "</h1></body></html>";
+
+    std::string content = content_ss.str();
+    std::string status_line = generate_response_status_line(http_ver, http_proto::StatusCode::success_ok);
+
+    return http_response_generate(content, status_line);
+}
+
 
 int http_url_decode(const std::string& in, std::string& out) {
 

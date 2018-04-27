@@ -24,23 +24,20 @@ public:
 
     /// Construct a connection with the given socket.
     TCPConnAsync(std::shared_ptr<ip::tcp::socket> p_socket, HttpServer& server);
-
-    virtual ~TCPConnAsync() {
-		// log_debug("NET CONN SOCKET RELEASED!!!");
-	}
+    virtual ~TCPConnAsync();
 
     virtual void start();
     void stop();
 
-	// http://www.boost.org/doc/libs/1_44_0/doc/html/boost_asio/reference/error__basic_errors.html
-	bool handle_socket_ec(const boost::system::error_code& ec);
+    // http://www.boost.org/doc/libs/1_44_0/doc/html/boost_asio/reference/error__basic_errors.html
+    bool handle_socket_ec(const boost::system::error_code& ec);
 
 private:
 
     virtual void do_read() override { safe_assert(false); }
-	virtual void read_handler(const boost::system::error_code& ec, std::size_t bytes_transferred) override {
-		safe_assert(false);
-	}
+    virtual void read_handler(const boost::system::error_code& ec, std::size_t bytes_transferred) override {
+        safe_assert(false);
+    }
 
     virtual void do_write();
     virtual void write_handler(const boost::system::error_code &ec, std::size_t bytes_transferred);
@@ -51,15 +48,39 @@ private:
     void do_read_body();
     void read_body_handler(const boost::system::error_code &ec, std::size_t bytes_transferred);
 
+    void set_ops_cancel_timeout();
+    void revoke_ops_cancel_timeout();
+    bool was_ops_cancelled() {
+        boost::unique_lock<boost::mutex> lock(ops_cancel_mutex_);
+        return was_cancelled_;
+    }
+
+    bool ops_cancel() {
+        boost::unique_lock<boost::mutex> lock(ops_cancel_mutex_);
+        sock_cancel();
+        set_conn_stat(ConnStat::kConnError);
+        was_cancelled_ = true;
+        return was_cancelled_;
+    }
+    void ops_cancel_timeout_call(const boost::system::error_code& ec);
+
+    // 是否Connection长连接
+    bool keep_continue();
+
     void fill_http_for_send(const char* data, size_t len, const string& status);
     void fill_http_for_send(const string& str, const string& status);
+
+    // 标准的HTTP响应头和响应体
+    void fill_std_http_for_send(enum http_proto::StatusCode code);
 
 private:
 
     // 用于读取HTTP的头部使用
     boost::asio::streambuf request_;   // client request_ read
 
-	time_t expired_at_;
+    bool was_cancelled_;
+    boost::mutex ops_cancel_mutex_;
+    std::unique_ptr<boost::asio::deadline_timer> ops_cancel_timer_;
 
 private:
 
@@ -79,10 +100,10 @@ private:
 
 private:
     // 读写的有效负载记录
-    size_t r_size_; //读取开始写的位置
+    size_t r_size_; // 读取开始写的位置
 
     size_t w_size_; // 有效负载的末尾
-    size_t w_pos_;  //写可能会一次不能完全发送，这里保存已写的位置
+    size_t w_pos_;  // 写可能会一次不能完全发送，这里保存已写的位置
 
     std::shared_ptr<std::vector<char> > p_buffer_;
     std::shared_ptr<std::vector<char> > p_write_;

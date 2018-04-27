@@ -4,7 +4,7 @@
 // 自定义成功，失败规则
 
 void process_logic_1( int& status, int& err_code,
-                        int amount, const std::string& remarks, int l_status) {
+                      int amount, const std::string& remarks, int l_status) {
 
     if (remarks == "succ") {
         status = TransStatus::kTransSuccess;
@@ -25,7 +25,7 @@ void process_logic_1( int& status, int& err_code,
 
 
 void process_logic_2( int& status, int& err_code,
-                        int amount, const std::string& remarks, int l_status) {
+                      int amount, const std::string& remarks, int l_status) {
 
     if (amount >= 100*10000*100) { // 单笔不超过100W
         log_err("F_amount error: %ld", amount);
@@ -56,3 +56,29 @@ void process_logic_2( int& status, int& err_code,
     return;
 }
 
+void process_logic_3( int& status, int& err_code,
+                      int amount, const std::string& remarks, int l_status) {
+
+
+    if (remarks == "6100000002") {
+        if ( amount <= 300 ){
+            status = TransStatus::kTransSuccess;
+            err_code = TransErrInfo::kTransNoErr;
+        } else {
+            status = TransStatus::kTransFail;
+            err_code = TransErrInfo::kTransAmountErr;
+        }
+
+        return;
+    }
+
+    if ((amount % 2) && (amount < 1000000) ){
+        status = TransStatus::kTransSuccess;
+        err_code = TransErrInfo::kTransNoErr;
+    } else {
+        status = TransStatus::kTransFail;
+        err_code = TransErrInfo::kTransAmountErr;
+    }
+
+    return;
+}

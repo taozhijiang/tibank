@@ -10,9 +10,9 @@ enum ConnStat {
 };
 
 enum ShutdownType {
-	kShutdownSend = 1,
-	kShutdownRecv = 2,
-	kShutdownBoth = 3,
+    kShutdownSend = 1,
+    kShutdownRecv = 2,
+    kShutdownBoth = 3,
 };
 
 class ConnIf {
@@ -61,13 +61,23 @@ public:
     void sock_shutdown(enum ShutdownType s) {
 
         boost::system::error_code ignore_ec;
-		if (s == kShutdownSend) {
-			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_send, ignore_ec);
-		} else if (s == kShutdownRecv) {
-			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_receive, ignore_ec);
-		} else if (s == kShutdownBoth) {
-			sock_ptr_->shutdown(boost::asio::socket_base::shutdown_both, ignore_ec);
-		}
+        if (s == kShutdownSend) {
+            sock_ptr_->shutdown(boost::asio::socket_base::shutdown_send, ignore_ec);
+        } else if (s == kShutdownRecv) {
+            sock_ptr_->shutdown(boost::asio::socket_base::shutdown_receive, ignore_ec);
+        } else if (s == kShutdownBoth) {
+            sock_ptr_->shutdown(boost::asio::socket_base::shutdown_both, ignore_ec);
+        }
+    }
+
+    void sock_cancel() {
+        boost::system::error_code ignore_ec;
+        sock_ptr_->cancel(ignore_ec);
+    }
+
+    void sock_close() {
+        boost::system::error_code ignore_ec;
+        sock_ptr_->close(ignore_ec);
     }
 
     enum ConnStat get_conn_stat() { return conn_stat_; }
