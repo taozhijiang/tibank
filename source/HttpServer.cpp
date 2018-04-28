@@ -6,7 +6,6 @@
 
 #include "HttpHandler.h"
 #include "Utils.h"
-#include "SrvManager.h"
 
 #include "Log.h"
 #include "HttpServer.h"
@@ -19,7 +18,7 @@ static size_t bucket_hash_index_call(const std::shared_ptr<ConnType>& ptr) {
 HttpServer::HttpServer(const std::string& address, unsigned short port, size_t t_size) :
     io_service_(),
     ep_(ip::tcp::endpoint(ip::address::from_string(address), port)),
-    acceptor_(io_service_, ep_),
+    acceptor_(),
     conf_({}),
     conns_alive_("TcpConnAsync"),
     io_service_threads_(static_cast<uint8_t>(t_size)) {
@@ -83,7 +82,7 @@ bool HttpServer::init() {
         conf_.http_service_speed_ = 0;
     }
 
-    if (conf_.http_service_speed_ && (register_timer_task( boost::bind(&HttpConf::feed_http_service_token, &conf_), 5*1000, true, true) == 0) ) {
+    if (conf_.http_service_speed_ && (helper::register_timer_task( boost::bind(&HttpConf::feed_http_service_token, &conf_), 5*1000, true, true) == 0) ) {
         log_err("register http token feed task failed!");
         return false;
     }
@@ -109,7 +108,7 @@ bool HttpServer::init() {
     register_http_post_handler("/test", http_handler::post_test_handler);
 
 
-    if (register_timer_task( boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_), 5*1000, true, false) == 0) {
+    if (helper::register_timer_task( boost::bind(&AliveTimer<ConnType>::clean_up, &conns_alive_), 5*1000, true, false) == 0) {
         log_err("Register alive conn purge task failed!");
         return false;
     }
@@ -155,8 +154,12 @@ void HttpServer::io_service_run(ThreadObjPtr ptr) {
 
 void HttpServer::service() {
 
-    acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
-    acceptor_.listen();
+    acceptor_.reset( new ip::tcp::acceptor(io_service_) );
+    acceptor_->open(ep_.protocol());
+
+    acceptor_->set_option(ip::tcp::acceptor::reuse_address(true));
+    acceptor_->bind(ep_);
+    acceptor_->listen();
 
     do_accept();
 }
@@ -164,7 +167,7 @@ void HttpServer::service() {
 void HttpServer::do_accept() {
 
     SocketPtr sock_ptr(new ip::tcp::socket(io_service_));
-    acceptor_.async_accept(*sock_ptr,
+    acceptor_->async_accept(*sock_ptr,
                            boost::bind(&HttpServer::accept_handler, this,
                                        boost::asio::placeholders::error, sock_ptr));
 }
@@ -277,10 +280,13 @@ int HttpServer::find_http_get_handler(std::string uri, HttpGetHandler& handler){
 }
 
 int HttpServer::io_service_stop_graceful() {
-
     log_err("About to stop io_service... ");
     io_service_.stop();
     io_service_threads_.graceful_stop_threads();
+    return 0;
+}
 
+int HttpServer::io_service_join() {
+    io_service_threads_.join_threads();
     return 0;
 }

@@ -40,9 +40,11 @@ public:
 
     void start_threads();
     void suspend_threads();
-            // release this thread object
+
+    // release this thread object
     void graceful_stop_threads();
     void immediate_stop_threads();
+    void join_threads();
 
     int resize_threads(uint8_t thread_num);
     size_t get_thread_pool_size();

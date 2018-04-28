@@ -86,43 +86,55 @@ bool sys_config_init(const std::string& config_file) {
     return true;
 }
 
+#include "Manager.h"
+
 #include "ConnPool.h"
 #include "SqlConn.h"
-#include "SrvManager.h"
+#include "RedisConn.h"
+#include "MqConn.h"
+#include "TimerService.h"
+
+namespace helper {
 
 bool request_scoped_sql_conn(sql_conn_ptr& conn) {
-    return SrvManager::instance().sql_pool_ptr_->request_scoped_conn(conn);
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
+    return Manager::instance().sql_pool_ptr_->request_scoped_conn(conn);
 }
 
 sql_conn_ptr request_sql_conn() {
-    return SrvManager::instance().sql_pool_ptr_->request_conn();
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
+    return Manager::instance().sql_pool_ptr_->request_conn();
 }
 
 sql_conn_ptr try_request_sql_conn(size_t msec) {
-    return SrvManager::instance().sql_pool_ptr_->try_request_conn(msec);
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
+    return Manager::instance().sql_pool_ptr_->try_request_conn(msec);
 }
 
 void free_sql_conn(sql_conn_ptr conn) {
-    return SrvManager::instance().sql_pool_ptr_->free_conn(conn);
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
+    return Manager::instance().sql_pool_ptr_->free_conn(conn);
 }
 
-#include "RedisConn.h"
 bool request_scoped_redis_conn(redis_conn_ptr& conn) {
-    return SrvManager::instance().redis_pool_ptr_->request_scoped_conn(conn);
+    SAFE_ASSERT(Manager::instance().redis_pool_ptr_);
+    return Manager::instance().redis_pool_ptr_->request_scoped_conn(conn);
 }
 
-#include "TimerService.h"
+std::shared_ptr<TimerService> request_timer_service() {
+    SAFE_ASSERT(Manager::instance().timer_service_ptr_);
+    return Manager::instance().timer_service_ptr_;
+}
+
 int64_t register_timer_task(TimerEventCallable func, int64_t msec, bool persist, bool fast) {
-    return TimerService::instance().register_timer_task(func, msec, persist, fast);
+    SAFE_ASSERT(Manager::instance().timer_service_ptr_);
+    return Manager::instance().timer_service_ptr_->register_timer_task(func, msec, persist, fast);
 }
 
 int64_t revoke_timer_task(int64_t index) {
-    return TimerService::instance().revoke_timer_task(index);
+    SAFE_ASSERT(Manager::instance().timer_service_ptr_);
+    return Manager::instance().timer_service_ptr_->revoke_timer_task(index);
 }
-
-
-
-#include "MqConn.h"
 
 int tz_mq_test() {
 
@@ -196,4 +208,31 @@ int tz_mq_test() {
     }
 
     return 0;
+}
+
+
+const std::string& request_http_docu_root() {
+    SAFE_ASSERT(Manager::instance().http_server_ptr_);
+    return Manager::instance().http_server_ptr_->document_root();
+}
+
+const std::vector<std::string>& request_http_docu_index() {
+    SAFE_ASSERT(Manager::instance().http_server_ptr_);
+    return Manager::instance().http_server_ptr_->document_index();
+}
+
+void COUNT_FUNC_PERF::display_info(const std::string& env, int64_t time_ms, int64_t time_us) {
+    log_debug("%s, %s perf: %ld.%ld ms", env_.c_str(), key_.c_str(), time_ms, time_us);
+}
+
+} // end namespace
+
+
+
+namespace boost {
+
+void assertion_failed(char const * expr, char const * function, char const * file, long line) {
+    log_err("BAD!!! expr `%s` assert failed at %s(%ld): %s", expr, file, line, function);
+}
+
 }

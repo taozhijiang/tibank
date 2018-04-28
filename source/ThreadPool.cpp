@@ -109,6 +109,14 @@ public:
         return;
     }
 
+    void join_tasks() {
+        do {
+            for (auto iter = workers_.begin(); iter != workers_.end(); ++iter) {
+                iter->first->join();
+            }
+        } while (!workers_.empty());
+    }
+
     bool graceful_stop(ThreadPtr worker, uint8_t timed_seconds) {
         std::map<ThreadPtr, ThreadObjPtr>::iterator it;
 
@@ -230,45 +238,49 @@ private:
 // call forward
 
 bool ThreadPool::init_threads(ThreadRunnable func) {
-	return impl_ptr_->init(func);
+    return impl_ptr_->init(func);
 }
 
 void ThreadPool::start_threads() {
-	return impl_ptr_->start_tasks();
+    return impl_ptr_->start_tasks();
 }
 
 void ThreadPool::suspend_threads() {
-	return impl_ptr_->suspend_tasks();
+    return impl_ptr_->suspend_tasks();
 }
 
 void ThreadPool::graceful_stop_threads() {
-	return impl_ptr_->graceful_stop_tasks();
+    return impl_ptr_->graceful_stop_tasks();
 }
 
 void ThreadPool::immediate_stop_threads() {
-	return impl_ptr_->immediate_stop_tasks();
+    return impl_ptr_->immediate_stop_tasks();
+}
+
+void ThreadPool::join_threads() {
+    return impl_ptr_->join_tasks();
 }
 
 int ThreadPool::resize_threads(uint8_t thread_num) {
-	return impl_ptr_->resize_thread_pool(thread_num);
+    return impl_ptr_->resize_thread_pool(thread_num);
 }
 
 size_t ThreadPool::get_thread_pool_size() {
-	return impl_ptr_->get_thread_pool_size();
+    return impl_ptr_->get_thread_pool_size();
 }
 
 ThreadPool::ThreadPool(uint8_t thread_num) {
 
-	if (thread_num == 0 || thread_num > kMaxiumThreadPoolSize ){
-		log_err("Invalid thread_number %d,, CRITICAL !!!", thread_num);
-		::abort();
-	}
+    if (thread_num == 0 || thread_num > kMaxiumThreadPoolSize ){
+        log_err("Invalid thread_number %d,, CRITICAL !!!", thread_num);
+        ::abort();
+    }
 
-	impl_ptr_.reset(new Impl(thread_num));
-	if (!impl_ptr_) {
-		log_err("Init create thread pool failed, CRITICAL!!!!");
-		::abort();
-	}
+    impl_ptr_.reset(new Impl(thread_num));
+    if (!impl_ptr_) {
+        log_err("Init create thread pool failed, CRITICAL!!!!");
+        ::abort();
+    }
 }
 
 ThreadPool::~ThreadPool() {

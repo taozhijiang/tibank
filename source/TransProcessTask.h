@@ -2,7 +2,6 @@
 #define __TiBANK_PROCESS_TASK_H__
 
 #include "ThreadPool.h"
-#include "SrvManager.h"
 
 
 // ProcessTask utils
@@ -42,33 +41,33 @@ CREATE TABLE `t_equeue_data_finished` (
 
 //任务类型
 enum TaskType {
-	kTaskTypeUnknown 	  = 0,    // 未知
-	kTaskTypeTransProcess = 1,	// 交易处理
+    kTaskTypeUnknown      = 0,    // 未知
+    kTaskTypeTransProcess = 1,  // 交易处理
 };
 
 //任务状态
 enum TaskStatusType {
-	kTaskStatusInit		   = 0,	//初始化
-	kTaskStatusWaiting    = 1,  //等待处理
-	kTaskStatusInProcess  = 2,	//正在处理
-	kTaskStatusFinished	  = 3,	//处理完成
-	kTaskStatusFailed	  = 4,	//处理出错, 但也不再继续处理
+    kTaskStatusInit        = 0, //初始化
+    kTaskStatusWaiting    = 1,  //等待处理
+    kTaskStatusInProcess  = 2,  //正在处理
+    kTaskStatusFinished   = 3,  //处理完成
+    kTaskStatusFailed     = 4,  //处理出错, 但也不再继续处理
 };
 
 
 class EQueueData {
 public:
-	EQueueData(std::string merch_id, std::string trans_id, int account_type) :
+    EQueueData(std::string merch_id, std::string trans_id, int account_type) :
                 merch_id_(merch_id), trans_id_(trans_id), account_type_(account_type),
-		        process_count_(0) {
-	}
+                process_count_(0) {
+    }
 
-	~EQueueData() {}
+    ~EQueueData() {}
 
-	std::string merch_id_;
-	std::string trans_id_;
+    std::string merch_id_;
+    std::string trans_id_;
     int          account_type_;
-	int          process_count_;   //回盘接口调动计数
+    int          process_count_;   //回盘接口调动计数
 };
 
 typedef std::shared_ptr<EQueueData> EQueueDataPtr;
@@ -87,22 +86,33 @@ int do_process_task(EQueueDataPtr qd);
 class TransProcessTask: public std::enable_shared_from_this<TransProcessTask>
 {
 public:
-	explicit TransProcessTask(uint8_t thread_num):
-		thread_num_init_(thread_num), trans_process_task_(thread_num) {
-	}
+    explicit TransProcessTask(uint8_t thread_num):
+        thread_num_init_(thread_num), trans_process_task_(thread_num) {
+    }
 
-	virtual ~TransProcessTask() {
-	}
+    virtual ~TransProcessTask() {
+    }
 
-	bool init();
+    bool init();
 
 private:
-	void trans_process_task_run(ThreadObjPtr ptr);
+    void trans_process_task_run(ThreadObjPtr ptr);
 
 public:
-	// 工作线程组
-	uint8_t thread_num_init_;
-	ThreadPool trans_process_task_;
+    // 工作线程组
+    uint8_t thread_num_init_;
+    ThreadPool trans_process_task_;
+
+    int stop_graceful() {
+        trans_process_task_.graceful_stop_threads();
+        return 0;
+    }
+
+    int join() {
+        trans_process_task_.join_threads();
+        return 0;
+    }
+
 };
 
 

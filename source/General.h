@@ -18,11 +18,16 @@
 #define noexcept
 #endif
 
+#include <boost/assert.hpp>
+
+#undef NDEBUG  // needed by handler
 #ifdef NP_DEBUG
-#define safe_assert(x) assert(x)
+// default, expand to ::assert
 #else
-#define safe_assert(x)
+// custom assert print but not abort, defined at Utils.cpp
+#define BOOST_ENABLE_ASSERT_HANDLER
 #endif
+#define SAFE_ASSERT(expr) BOOST_ASSERT(expr)
 
 
 #include <iostream>

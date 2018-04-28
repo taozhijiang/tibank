@@ -34,8 +34,8 @@ int do_process_task(EQueueDataPtr qd) {
     sql_conn_ptr conn;
     int nResult = 0;
 
-    request_scoped_sql_conn(conn);
-    safe_assert(conn);
+    helper::request_scoped_sql_conn(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -155,13 +155,12 @@ void TransProcessTask::trans_process_task_run(ThreadObjPtr ptr) {
 }
 
 
-
 int creat_trans_process_task(EQueueDataPtr qd) {
 
     sql_conn_ptr conn;
-    request_scoped_sql_conn(conn);
+    helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -169,14 +168,14 @@ int creat_trans_process_task(EQueueDataPtr qd) {
 
     time_t next_process_tm = ::time(NULL) + 10 /* 10s */;
     int count_affected = conn->sqlconn_execute_update(
-                                va_format("INSERT INTO %s.t_equeue_data "
-                                            " SET F_task_type = %d, F_task_status = %d, F_merch_id = '%s', F_trans_id = '%s', F_account_type = %d, "
-                                            " F_process_eqtime = %lu, F_process_count = 0, F_next_handle_time = DATE_ADD(NOW(), INTERVAL 5 MINUTE), "
-                                            " F_create_time = NOW(), F_update_time = NOW() "
-                                            " ON DUPLICATE KEY UPDATE F_task_status = %d, F_process_eqtime = %lu, F_next_handle_time = DATE_ADD(NOW(), INTERVAL 5 MINUTE), F_update_time = NOW()",
-                                            TiBANK_DATABASE_PREFIX, TaskType::kTaskTypeTransProcess, TaskStatusType::kTaskStatusWaiting,
-                                            qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_, next_process_tm,
-                                            TaskStatusType::kTaskStatusWaiting, next_process_tm));
+        va_format("INSERT INTO %s.t_equeue_data "
+                    " SET F_task_type = %d, F_task_status = %d, F_merch_id = '%s', F_trans_id = '%s', F_account_type = %d, "
+                    " F_process_eqtime = %lu, F_process_count = 0, F_next_handle_time = DATE_ADD(NOW(), INTERVAL 5 MINUTE), "
+                    " F_create_time = NOW(), F_update_time = NOW() "
+                    " ON DUPLICATE KEY UPDATE F_task_status = %d, F_process_eqtime = %lu, F_next_handle_time = DATE_ADD(NOW(), INTERVAL 5 MINUTE), F_update_time = NOW()",
+                    TiBANK_DATABASE_PREFIX, TaskType::kTaskTypeTransProcess, TaskStatusType::kTaskStatusWaiting,
+                    qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_, next_process_tm,
+                    TaskStatusType::kTaskStatusWaiting, next_process_tm));
 
     // on duplicate 生效的时候 affected == 2
     if(count_affected != 1 && count_affected != 2){
@@ -191,9 +190,9 @@ int creat_trans_process_task(EQueueDataPtr qd) {
 
 int touch_trans_process_task(EQueueDataPtr qd) {
     sql_conn_ptr conn;
-    request_scoped_sql_conn(conn);
+    helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -218,8 +217,8 @@ int touch_trans_process_task(EQueueDataPtr qd) {
 int finish_trans_process_task(EQueueDataPtr qd, enum TaskStatusType stat) {
 
     sql_conn_ptr conn;
-    request_scoped_sql_conn(conn);
-    safe_assert(conn);
+    helper::request_scoped_sql_conn(conn);
+    SAFE_ASSERT(conn);
 
     return finish_trans_process_task(conn, qd, stat);
 }
@@ -227,7 +226,7 @@ int finish_trans_process_task(EQueueDataPtr qd, enum TaskStatusType stat) {
 int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStatusType stat) {
     int nResult = 0;
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -308,9 +307,9 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
 
     int nResult = 0;
     sql_conn_ptr conn;
-    request_scoped_sql_conn(conn);
+    helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;

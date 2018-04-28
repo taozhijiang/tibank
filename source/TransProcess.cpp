@@ -102,9 +102,9 @@ std::string get_trans_error_str(int code) {
 int process_trans_submit(const struct trans_submit_request& req, struct trans_submit_response& ret){
 
     sql_conn_ptr conn;
-    request_scoped_sql_conn(conn);
+    helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
 
@@ -216,9 +216,9 @@ int generate_trans_submit_ret(const trans_submit_response& ret, std::string& pos
 int process_trans_query(const struct trans_query_request& req, struct trans_query_response& ret) {
 
     sql_conn_ptr conn;
-    request_scoped_sql_conn(conn);
+    helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         ret.trans_response = TransResponseCode::kTransResponseOK;
