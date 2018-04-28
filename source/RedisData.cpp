@@ -3,8 +3,6 @@
 
 #include "Utils.h"
 #include "RedisData.h"
-#include "SrvManager.h"
-
 
 static const std::string kRedisPrefix = "bankpay";
 
@@ -16,7 +14,6 @@ RedisData& RedisData::instance() {
 }
 
 bool RedisData::init() {
-    safe_assert( SrvManager::instance().redis_pool_ptr_);
     return true;
 }
 
@@ -34,7 +31,7 @@ int RedisData::calc_item(const std::string& class_key, const std::string& item_k
         try {
 
             redis_conn_ptr conn;
-            request_scoped_redis_conn(conn);
+            helper::request_scoped_redis_conn(conn);
 
             if (!conn) {
                 log_err("cannot get redis conn!");
@@ -97,7 +94,7 @@ int RedisData::get_item(const std::string& class_key, const std::string& item_ke
         try {
 
             redis_conn_ptr conn;
-            request_scoped_redis_conn(conn);
+            helper::request_scoped_redis_conn(conn);
 
             if (!conn) {
                 log_err("cannot get redis conn!");

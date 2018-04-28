@@ -8,12 +8,11 @@ void backtrace_init();
 #include "General.h"
 #include "Utils.h"
 #include "Log.h"
-#include "SrvManager.h"
+#include "Manager.h"
 
 #include "commonutil/SslSetup.h"
 #include "commonutil/HttpUtil.h"
 
-volatile bool TiBANK_SHUTDOWN = false;
 const char* TiBANK_DATABASE_PREFIX = "tibank";
 struct tm service_start{};
 std::string TiBANK_VERSION;
@@ -23,18 +22,18 @@ static void interrupted_callback(int signal){
 
     switch(signal) {
 
-    case SIGQUIT:
+        case SIGQUIT:
             log_info("Graceful stop tibank service ... ");
-            SrvManager::instance().service_graceful();
+            Manager::instance().service_graceful();
             log_info("Graceful stop tibank done!"); // main join all
-            TiBANK_SHUTDOWN = true;
+            ::sleep(1);
+            ::exit(0);
             break;
 
         case SIGTERM:
             log_info("Immediately shutdown tibank service ... ");
-            SrvManager::instance().service_terminate();
+            Manager::instance().service_terminate();
             log_info("Immediately shutdown tibank service done! ");
-            TiBANK_SHUTDOWN = true;
             ::sleep(1);
             ::exit(0);
             break;
@@ -126,15 +125,15 @@ int main(int argc, char* argv[]) {
     ::localtime_r(&now, &service_start);
     log_info("Service start at %s", ::asctime(&service_start));
 
-    (void)SrvManager::instance(); // create object first!
+    (void)Manager::instance(); // create object first!
     HttpUtil::InitHttpEnvironment();
 
     create_process_pid();
     init_signal_handle();
     backtrace_init();
 
-    if(!SrvManager::instance().init()) {
-        log_err("SrvManager init error!");
+    if(!Manager::instance().init()) {
+        log_err("Manager init error!");
         ::exit(1);
     }
 
@@ -145,7 +144,7 @@ int main(int argc, char* argv[]) {
     }
 
     log_debug( "TiBank system initialized ok!");
-    SrvManager::instance().service_joinall();
+    Manager::instance().service_joinall();
 
     Ssl_thread_clean();
 

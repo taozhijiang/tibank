@@ -55,7 +55,7 @@ public:
     }
 
     bool init() {
-        conn_pool_stats_timer_id_ = register_timer_task(
+        conn_pool_stats_timer_id_ = helper::register_timer_task(
                 boost::bind(&ConnPool::show_conn_pool_stats, this->shared_from_this()), 60 * 1000/* 60s */, true, true);
         if (conn_pool_stats_timer_id_ == 0) {
             log_err("Register conn_pool_stats_timer failed! ");
@@ -65,7 +65,7 @@ public:
         if (conn_pool_linger_sec_) {
             log_info("We will try to trim idle connection %lu sec.", conn_pool_linger_sec_);
 
-            conn_pool_linger_trim_id_ = register_timer_task(
+            conn_pool_linger_trim_id_ = helper::register_timer_task(
                 boost::bind(&ConnPool::do_conn_pool_linger_trim, this->shared_from_this()), 10 * 1000/* 10s */, true, false);
             if (conn_pool_linger_trim_id_ == 0) {
                 log_err("Register do_conn_pool_linger_trim failed! ");
@@ -150,7 +150,7 @@ public:
 
     ~ConnPool() {
 
-        revoke_timer_task(conn_pool_stats_timer_id_);
+        helper::revoke_timer_task(conn_pool_stats_timer_id_);
 
     }
 

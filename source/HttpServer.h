@@ -86,7 +86,7 @@ private:
 
     // 侦听地址信息
     ip::tcp::endpoint ep_;
-    ip::tcp::acceptor acceptor_;
+    std::unique_ptr<ip::tcp::acceptor> acceptor_;
 
     HttpConf conf_;
 
@@ -145,6 +145,7 @@ public:
     ThreadPool io_service_threads_;
     void io_service_run(ThreadObjPtr ptr);  // main task loop
     int io_service_stop_graceful();
+    int io_service_join();
 };
 
 #endif //_TiBANK_HTTP_SERVER_H_

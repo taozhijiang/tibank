@@ -7,9 +7,9 @@
 
 #include "HttpProto.h"
 #include "HttpHandler.h"
-#include "SrvManager.h"
 #include "HttpServer.h"
 #include "Log.h"
+#include "Utils.h"
 #include "TransProcess.h"
 #include "json/json.h"
 
@@ -20,7 +20,7 @@ using namespace http_proto;
 int submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
-	Json::Reader reader;
+    Json::Reader reader;
     Json::Value::Members mem;
 
     std::map<std::string, std::string> mapParam;
@@ -105,13 +105,13 @@ error_ret2:
 error_ret:
     response = http_proto::content_error;
     status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
-	return -1;
+    return -1;
 }
 
 int query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
-	Json::Reader reader;
+    Json::Reader reader;
     Json::Value::Members mem;
 
     std::map<std::string, std::string> mapParam;
@@ -191,13 +191,13 @@ error_ret2:
 error_ret:
     response = http_proto::content_error;
     status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
-	return -1;
+    return -1;
 }
 
 int batch_submit_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
-	Json::Reader reader;
+    Json::Reader reader;
     Json::Value::Members mem;
 
     std::map<std::string, std::string> mapParam;
@@ -259,23 +259,23 @@ int batch_submit_handler(const HttpParser& http_parser, const std::string& post_
     batch_submit_req.total_amount = ::atol(mapParam.at("total_amount").c_str());
 
     if (!reader.parse(mapParam["orders"], orderReqs) || !orderReqs.isArray()) {
-    	log_err("parse error for: %s", mapParam["orders"].c_str());
+        log_err("parse error for: %s", mapParam["orders"].c_str());
 
         batch_submit_ret.trans_err_code = TransErrInfo::kTransParamErr;
-    	goto error_ret;
+        goto error_ret;
     }
 
     for (size_t i = 0; i < orderReqs.size(); i++) {
-    	if (!orderReqs[i]["trans_id"].isString() || !orderReqs[i]["account_no"].isString() ||
-    		!orderReqs[i]["account_name"].isString() || !orderReqs[i]["amount"].isString() ||
-    		!orderReqs[i]["account_type"].isString() || !orderReqs[i]["branch_name"].isString() ||
-    		!orderReqs[i]["branch_no"].isString() || !orderReqs[i]["remarks"].isString()){
+        if (!orderReqs[i]["trans_id"].isString() || !orderReqs[i]["account_no"].isString() ||
+            !orderReqs[i]["account_name"].isString() || !orderReqs[i]["amount"].isString() ||
+            !orderReqs[i]["account_type"].isString() || !orderReqs[i]["branch_name"].isString() ||
+            !orderReqs[i]["branch_no"].isString() || !orderReqs[i]["remarks"].isString()){
 
             log_err("order error!");
 
             batch_submit_ret.trans_err_code = TransErrInfo::kTransParamErr;
-    		goto error_ret;
-    	}
+            goto error_ret;
+        }
 
         trans_submit_request req;
         req.merch_id = batch_submit_req.merch_id;
@@ -325,13 +325,13 @@ error_ret2:
 error_ret:
     response = http_proto::content_error;
     status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
-	return -1;
+    return -1;
 }
 
 int batch_query_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
     Json::Value root;
-	Json::Reader reader;
+    Json::Reader reader;
     Json::Value::Members mem;
 
     std::map<std::string, std::string> mapParam;
@@ -389,16 +389,16 @@ int batch_query_handler(const HttpParser& http_parser, const std::string& post_d
     batch_query_req.total_amount = ::atol(mapParam.at("total_amount").c_str());
 
     if (!reader.parse(mapParam["orders"], orderReqs) || !orderReqs.isArray()) {
-    	log_err("parse error for: %s", mapParam["orders"].c_str());
-    	goto error_ret;
+        log_err("parse error for: %s", mapParam["orders"].c_str());
+        goto error_ret;
     }
 
     for (size_t i = 0; i < orderReqs.size(); i++) {
-    	if (!orderReqs[i]["trans_id"].isString() || !orderReqs[i]["account_no"].isString()
+        if (!orderReqs[i]["trans_id"].isString() || !orderReqs[i]["account_no"].isString()
             || !orderReqs[i]["account_name"].isString() || !orderReqs[i]["account_type"].isString() ){
-    		log_err("order error!");
-    		goto error_ret;
-    	}
+            log_err("order error!");
+            goto error_ret;
+        }
 
         trans_query_request req;
         req.merch_id = batch_query_req.merch_id;
@@ -449,125 +449,116 @@ error_ret2:
 error_ret:
     response = http_proto::content_error;
     status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
-	return -1;
+    return -1;
 
-}
-
-
-static const std::string& document_root() {
-    return SrvManager::instance().http_server_ptr_->document_root();
-}
-
-static const std::vector<std::string>& document_index() {
-    return SrvManager::instance().http_server_ptr_->document_index();
 }
 
 static bool check_and_sendfile(const HttpParser& http_parser, std::string regular_file_path,
                                    std::string& response, string& status_line) {
 
-	// check dest is directory or regular?
-	struct stat sb;
-	if (stat(regular_file_path.c_str(), &sb) == -1) {
-		log_err("Stat file error: %s", regular_file_path.c_str());
-		response = http_proto::content_error;
+    // check dest is directory or regular?
+    struct stat sb;
+    if (stat(regular_file_path.c_str(), &sb) == -1) {
+        log_err("Stat file error: %s", regular_file_path.c_str());
+        response = http_proto::content_error;
         status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
-		return false;
-	}
+        return false;
+    }
 
-	if (sb.st_size > 100*1024*1024 /*100M*/) {
-		log_err("Too big file size: %ld", sb.st_size);
-		response = http_proto::content_bad_request;
+    if (sb.st_size > 100*1024*1024 /*100M*/) {
+        log_err("Too big file size: %ld", sb.st_size);
+        response = http_proto::content_bad_request;
         status_line = generate_response_status_line(http_parser.get_version(), StatusCode::client_error_bad_request);
-		return false;
-	}
+        return false;
+    }
 
-	std::ifstream fin(regular_file_path);
-	fin.seekg(0);
-	std::stringstream buffer;
-	buffer << fin.rdbuf();
-	response = buffer.str();
+    std::ifstream fin(regular_file_path);
+    fin.seekg(0);
+    std::stringstream buffer;
+    buffer << fin.rdbuf();
+    response = buffer.str();
     status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
 
-	return true;
+    return true;
 }
 
 
 int default_http_get_handler(const HttpParser& http_parser, std::string& response, string& status_line) {
 
-	const UriParamContainer& params = http_parser.get_request_uri_params();
-	if (!params.EMPTY()) {
-		log_err("Default handler just for static file transmit, we can not handler uri parameters...");
-	}
+    const UriParamContainer& params = http_parser.get_request_uri_params();
+    if (!params.EMPTY()) {
+        log_err("Default handler just for static file transmit, we can not handler uri parameters...");
+    }
 
-	std::string real_file_path = document_root() + "/" + http_parser.find_request_header(http_proto::header_options::request_path_info);
+    std::string real_file_path = helper::request_http_docu_root() + "/" + http_parser.find_request_header(http_proto::header_options::request_path_info);
 
-	// check dest exist?
-	if (::access(real_file_path.c_str(), R_OK) != 0) {
-		log_err("File not found: %s", real_file_path.c_str());
-		response = http_proto::content_not_found;
+    // check dest exist?
+    if (::access(real_file_path.c_str(), R_OK) != 0) {
+        log_err("File not found: %s", real_file_path.c_str());
+        response = http_proto::content_not_found;
         status_line = generate_response_status_line(http_parser.get_version(), StatusCode::client_error_not_found);
-		return -1;
-	}
+        return -1;
+    }
 
-	// check dest is directory or regular?
-	struct stat sb;
-	if (stat(real_file_path.c_str(), &sb) == -1) {
-		log_err("Stat file error: %s", real_file_path.c_str());
-		response = http_proto::content_error;
+    // check dest is directory or regular?
+    struct stat sb;
+    if (stat(real_file_path.c_str(), &sb) == -1) {
+        log_err("Stat file error: %s", real_file_path.c_str());
+        response = http_proto::content_error;
         status_line = generate_response_status_line(http_parser.get_version(), StatusCode::server_error_internal_server_error);
-		return -1;
-	}
+        return -1;
+    }
 
-	switch (sb.st_mode & S_IFMT) {
-		case S_IFREG:
+    switch (sb.st_mode & S_IFMT) {
+        case S_IFREG:
             check_and_sendfile(http_parser, real_file_path, response, status_line);
-			break;
+            break;
 
-		case S_IFDIR:
-			{
-				bool OK = false;
-				const std::vector<std::string> &indexes = document_index();
-				for (std::vector<std::string>::const_iterator iter = indexes.cbegin(); iter != indexes.cend(); ++iter) {
-					std::string file_path = real_file_path + "/" + *iter;
-					log_info("Trying: %s", file_path.c_str());
+        case S_IFDIR:
+            {
+                bool OK = false;
+                const std::vector<std::string> &indexes = helper::request_http_docu_index();
+                for (std::vector<std::string>::const_iterator iter = indexes.cbegin(); iter != indexes.cend(); ++iter) {
+                    std::string file_path = real_file_path + "/" + *iter;
+                    log_info("Trying: %s", file_path.c_str());
                     if (check_and_sendfile(http_parser, file_path, response, status_line)) {
-						OK = true;
-						break;
-					}
-				}
+                        OK = true;
+                        break;
+                    }
+                }
 
-				if (!OK) {
-					// default, 404
-					response = http_proto::content_not_found;
+                if (!OK) {
+                    // default, 404
+                    response = http_proto::content_not_found;
                     status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
-				}
-			}
-			break;
+                }
+            }
+            break;
 
-		default:
-			break;
-	}
+        default:
+            break;
+    }
 
-	return 0;
+    return 0;
 }
 
 
 
 int get_test_handler(const HttpParser& http_parser, std::string& response, string& status_line) {
 
-	response = http_proto::content_ok;
-	status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
+    response = http_proto::content_ok;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
 
-	return 0;
+    return 0;
 }
 
 
 int post_test_handler(const HttpParser& http_parser, const std::string& post_data, std::string& response, string& status_line) {
 
-	response = post_data;
-	status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
+    response = post_data;
+    status_line = generate_response_status_line(http_parser.get_version(), StatusCode::success_ok);
 
-	return 0;
+    return 0;
 }
 
 } // end namespace

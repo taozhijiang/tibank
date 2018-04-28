@@ -3,12 +3,8 @@
 
 #include "General.h"
 #include "Log.h"
+#include "Utils.h"
 #include "TimerService.h"
-
-TimerService& TimerService::instance() {
-    static TimerService handler;
-    return handler;
-}
 
 bool TimerService::init() {
 
@@ -31,11 +27,12 @@ bool TimerService::init() {
 
 void c_timer_cb(int fd, short what, void *arg) {
 
-    TimerService::instance().timer_cb(fd, what, arg);
-
+    auto self = helper::request_timer_service();
+    self->timer_cb(fd, what, arg);
 }
 
 void TimerService::timer_cb (int fd, short what, void *arg) {
+
     if (fd != -1 || !(what & (EV_READ | EV_TIMEOUT) ) ) {
         log_err("Invalid check: %d, %d, %d, %d ", fd, what, EV_READ, EV_TIMEOUT);
         return;
@@ -147,6 +144,10 @@ int TimerService::stop_graceful() {
     return 0;
 }
 
+int TimerService::join() {
+    timer_defer_.join_threads();
+    return 0;
+}
 
 int64_t TimerService::register_timer_task(TimerEventCallable func, int64_t msec,
                                            bool persist, bool fast) {

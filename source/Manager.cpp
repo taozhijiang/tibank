@@ -13,23 +13,23 @@
 #include "RedisData.h"
 #include "TransProcessTask.h"
 
-#include "SrvManager.h"
+#include "Manager.h"
 
 // 在主线程中最先初始化，所以不考虑竞争条件问题
-SrvManager& SrvManager::instance() {
-    static SrvManager service;
+Manager& Manager::instance() {
+    static Manager service;
     return service;
 }
 
-SrvManager::SrvManager():
+Manager::Manager():
     initialized_(false){
 }
 
 
-bool SrvManager::init() {
+bool Manager::init() {
 
     if (initialized_) {
-        log_err("SrvManager already initlialized...");
+        log_err("Manager already initlialized...");
         return false;
     }
 
@@ -39,10 +39,9 @@ bool SrvManager::init() {
     }
 
     (void)RedisData::instance();
-    (void)TimerService::instance();
 
-
-    if (!TimerService::instance().init()) {
+    timer_service_ptr_.reset(new TimerService());
+    if (!timer_service_ptr_ || !timer_service_ptr_->init()) {
         log_err("Init TimerService failed!");
         return false;
     }
@@ -122,7 +121,7 @@ bool SrvManager::init() {
     }
 
     // start work
-    TimerService::instance().start_timer();
+    timer_service_ptr_->start_timer();
     http_server_ptr_->io_service_threads_.start_threads();
 
     // business attached
@@ -131,35 +130,33 @@ bool SrvManager::init() {
     // do real service
     http_server_ptr_->service();
 
-    log_info("SrvManager all initialized...");
+    log_info("Manager all initialized...");
     initialized_ = true;
 
     return true;
 }
 
 
-bool SrvManager::service_graceful() {
+bool Manager::service_graceful() {
 
     http_server_ptr_->io_service_stop_graceful();
-    TimerService::instance().stop_graceful();
+    trans_process_ptr_->stop_graceful();
+    timer_service_ptr_->stop_graceful();
     log_info("timer_service_ graceful finished!");
 
     return true;
 }
 
-void SrvManager::service_terminate() {
+void Manager::service_terminate() {
     ::sleep(1);
     ::_exit(0);
 }
 
+bool Manager::service_joinall() {
 
-extern volatile bool TiBANK_SHUTDOWN;
-
-bool SrvManager::service_joinall() {
-
-    while (!TiBANK_SHUTDOWN){
-        ::sleep(5);
-    }
+    http_server_ptr_->io_service_join();
+    trans_process_ptr_->join();
+    timer_service_ptr_->join();
 
     return true;
 }

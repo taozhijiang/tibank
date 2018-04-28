@@ -19,11 +19,13 @@ class SqlConnPoolHelper;
 class RedisConn;
 class RedisConnPoolHelper;
 
+class TimerService;
+
 class TransProcessTask;
 
-class SrvManager {
+class Manager {
 public:
-    static SrvManager& instance();
+    static Manager& instance();
 
 public:
     bool init();
@@ -33,11 +35,12 @@ public:
     void service_terminate();
 
 private:
-    SrvManager();
+    Manager();
 
     bool initialized_;
 
 public:
+    std::shared_ptr<TimerService> timer_service_ptr_;
     std::shared_ptr<HttpServer> http_server_ptr_;
     std::shared_ptr<TransProcessTask> trans_process_ptr_;
     std::shared_ptr<ConnPool<SqlConn, SqlConnPoolHelper>> sql_pool_ptr_;
