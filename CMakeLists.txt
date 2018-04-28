@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O2 ")
 
 set (TIBANK_VERSION_MAJOR 1)
 set (TIBANK_VERSION_MINOR 2)
-set (TIBANK_VERSION_PATCH 0)
+set (TIBANK_VERSION_PATCH 1)
 configure_file (
   "include/config.h.in"
   "../include/config.h" )
