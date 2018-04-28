@@ -100,7 +100,7 @@ public:
         typename BucketContainer::iterator iter = bucket_items_.find(ptr.get());
         if (iter == bucket_items_.end()) {
             log_err("touched item not found!");
-            safe_assert(false);
+            SAFE_ASSERT(false);
             return false;
         }
 
@@ -112,7 +112,7 @@ public:
 
         if (time_items_.find(before) == time_items_.end()){
             log_err("bucket tm: %ld not found, critical error!", before);
-            safe_assert(false);
+            SAFE_ASSERT(false);
             return false;
         }
 
@@ -210,7 +210,7 @@ public:
                     T* p = (*it)->get_raw_ptr();
                     if (bucket_items_.find(p) == bucket_items_.end()) {
                         log_err("bucket item: %p not found, critical error!", p);
-                        safe_assert(false);
+                        SAFE_ASSERT(false);
                     }
 
                     log_debug("bucket item remove: %p, %ld", p, (*it)->get_expire_time());
@@ -256,7 +256,7 @@ public:
         log_debug("current alived hashed count:%ld, timed_count: %ld", bucket_items_.size(), total_count);
         if (bucket_items_.size() != total_count) {
             log_err("mismatch item count, bug count:%ld, timed_count: %ld", bucket_items_.size(), total_count);
-            safe_assert(false);
+            SAFE_ASSERT(false);
         }
     }
 
@@ -272,7 +272,7 @@ private:
             auto bucket_iter = bucket_items_.find(p);
             if (bucket_iter == bucket_items_.end()) {
                 log_err("bucket item: %p not found, critical error!", p);
-                safe_assert(false);
+                SAFE_ASSERT(false);
                 break;
             }
 
@@ -285,7 +285,7 @@ private:
             auto time_iter = time_items_.find(active_item->get_expire_time());
             if (time_iter == time_items_.end()) {
                 log_err("time slot: %ld not found, critical error!", active_item->get_expire_time());
-                safe_assert(false);
+                SAFE_ASSERT(false);
                 bucket_items_.erase(bucket_iter);  // remove it anyway
                 break;
             }
@@ -294,7 +294,7 @@ private:
             auto time_item_iter = time_set.find(active_item);
             if (time_item_iter == time_set.end()) {
                 log_err("time item not found, critical error!");
-                safe_assert(false);
+                SAFE_ASSERT(false);
                 bucket_items_.erase(bucket_iter);
                 break;
             }
@@ -308,7 +308,7 @@ private:
         auto weak_real = active_item->get_weak_ptr();
         if (std::shared_ptr<T> ptr = weak_real.lock()) { // bad!!!
             log_err("active remove item should not shared, bug...");
-            safe_assert(false);
+            SAFE_ASSERT(false);
             func_(ptr);
         }
     }

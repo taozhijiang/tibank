@@ -49,7 +49,7 @@ public:
         conn_pool_linger_sec_(linger_sec),
         conn_pool_linger_trim_id_(0) {
 
-        safe_assert(capacity_);
+        SAFE_ASSERT(capacity_);
         log_info( "ConnPool Maxium Capacity: %d", capacity_ );
         return;
     }

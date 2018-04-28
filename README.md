@@ -14,5 +14,13 @@
 
 ### 性能   
 在自己的渣本MF840上使用配置 2Core|1024M 的CentOS6虚拟机，服务设置采用3个io_service线程组，siege客户端设置1000并发强度下，基本能跑到1200trans/sec的吞吐量，更强的配置肯定能跑到更高的吞吐量，对于一般的小型服务应该是绰绰有余了。   
+![siege](siege.png?raw=true "siege"]
+
+测试的时候注意修改系统的三个参数：   
+```bash
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_timestamps=1
+net.ipv4.tcp_tw_recycle=1
+```
 
 Enjoy it!   

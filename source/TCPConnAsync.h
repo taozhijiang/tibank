@@ -34,9 +34,9 @@ public:
 
 private:
 
-    virtual void do_read() override { safe_assert(false); }
+    virtual void do_read() override { SAFE_ASSERT(false); }
     virtual void read_handler(const boost::system::error_code& ec, std::size_t bytes_transferred) override {
-        safe_assert(false);
+        SAFE_ASSERT(false);
     }
 
     virtual void do_write();

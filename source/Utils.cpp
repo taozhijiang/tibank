@@ -97,42 +97,42 @@ bool sys_config_init(const std::string& config_file) {
 namespace helper {
 
 bool request_scoped_sql_conn(sql_conn_ptr& conn) {
-    safe_assert(Manager::instance().sql_pool_ptr_);
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
     return Manager::instance().sql_pool_ptr_->request_scoped_conn(conn);
 }
 
 sql_conn_ptr request_sql_conn() {
-    safe_assert(Manager::instance().sql_pool_ptr_);
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
     return Manager::instance().sql_pool_ptr_->request_conn();
 }
 
 sql_conn_ptr try_request_sql_conn(size_t msec) {
-    safe_assert(Manager::instance().sql_pool_ptr_);
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
     return Manager::instance().sql_pool_ptr_->try_request_conn(msec);
 }
 
 void free_sql_conn(sql_conn_ptr conn) {
-    safe_assert(Manager::instance().sql_pool_ptr_);
+    SAFE_ASSERT(Manager::instance().sql_pool_ptr_);
     return Manager::instance().sql_pool_ptr_->free_conn(conn);
 }
 
 bool request_scoped_redis_conn(redis_conn_ptr& conn) {
-    safe_assert(Manager::instance().redis_pool_ptr_);
+    SAFE_ASSERT(Manager::instance().redis_pool_ptr_);
     return Manager::instance().redis_pool_ptr_->request_scoped_conn(conn);
 }
 
 std::shared_ptr<TimerService> request_timer_service() {
-    safe_assert(Manager::instance().timer_service_ptr_);
+    SAFE_ASSERT(Manager::instance().timer_service_ptr_);
     return Manager::instance().timer_service_ptr_;
 }
 
 int64_t register_timer_task(TimerEventCallable func, int64_t msec, bool persist, bool fast) {
-    safe_assert(Manager::instance().timer_service_ptr_);
+    SAFE_ASSERT(Manager::instance().timer_service_ptr_);
     return Manager::instance().timer_service_ptr_->register_timer_task(func, msec, persist, fast);
 }
 
 int64_t revoke_timer_task(int64_t index) {
-    safe_assert(Manager::instance().timer_service_ptr_);
+    SAFE_ASSERT(Manager::instance().timer_service_ptr_);
     return Manager::instance().timer_service_ptr_->revoke_timer_task(index);
 }
 
@@ -212,15 +212,27 @@ int tz_mq_test() {
 
 
 const std::string& request_http_docu_root() {
-    safe_assert(Manager::instance().http_server_ptr_);
+    SAFE_ASSERT(Manager::instance().http_server_ptr_);
     return Manager::instance().http_server_ptr_->document_root();
 }
 
 const std::vector<std::string>& request_http_docu_index() {
-    safe_assert(Manager::instance().http_server_ptr_);
+    SAFE_ASSERT(Manager::instance().http_server_ptr_);
     return Manager::instance().http_server_ptr_->document_index();
 }
 
-
+void COUNT_FUNC_PERF::display_info(const std::string& env, int64_t time_ms, int64_t time_us) {
+    log_debug("%s, %s perf: %ld.%ld ms", env_.c_str(), key_.c_str(), time_ms, time_us);
+}
 
 } // end namespace
+
+
+
+namespace boost {
+
+void assertion_failed(char const * expr, char const * function, char const * file, long line) {
+    log_err("BAD!!! expr `%s` assert failed at %s(%ld): %s", expr, file, line, function);
+}
+
+}

@@ -35,7 +35,7 @@ int do_process_task(EQueueDataPtr qd) {
     int nResult = 0;
 
     helper::request_scoped_sql_conn(conn);
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -160,7 +160,7 @@ int creat_trans_process_task(EQueueDataPtr qd) {
     sql_conn_ptr conn;
     helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -192,7 +192,7 @@ int touch_trans_process_task(EQueueDataPtr qd) {
     sql_conn_ptr conn;
     helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -218,7 +218,7 @@ int finish_trans_process_task(EQueueDataPtr qd, enum TaskStatusType stat) {
 
     sql_conn_ptr conn;
     helper::request_scoped_sql_conn(conn);
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
 
     return finish_trans_process_task(conn, qd, stat);
 }
@@ -226,7 +226,7 @@ int finish_trans_process_task(EQueueDataPtr qd, enum TaskStatusType stat) {
 int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStatusType stat) {
     int nResult = 0;
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;
@@ -309,7 +309,7 @@ int get_unfinished_trans_process_task(EQueueList& qlist, size_t batch_size, size
     sql_conn_ptr conn;
     helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         return -1;

@@ -132,9 +132,12 @@ int main(int argc, char* argv[]) {
     init_signal_handle();
     backtrace_init();
 
-    if(!Manager::instance().init()) {
-        log_err("Manager init error!");
-        ::exit(1);
+    {
+        PUT_COUNT_FUNC_PERF(Manager_init);
+        if(!Manager::instance().init()) {
+            log_err("Manager init error!");
+            ::exit(1);
+        }
     }
 
     // SSL 环境设置

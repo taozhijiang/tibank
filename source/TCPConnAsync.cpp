@@ -88,7 +88,7 @@ void TCPConnAsync::read_head_handler(const boost::system::error_code& ec, size_t
         return;
     }
 
-    safe_assert(bytes_transferred > 0);
+    SAFE_ASSERT(bytes_transferred > 0);
 
     std::string head_str (boost::asio::buffers_begin(request_.data()),
                             boost::asio::buffers_begin(request_.data()) + request_.size());
@@ -111,7 +111,7 @@ void TCPConnAsync::read_head_handler(const boost::system::error_code& ec, size_t
     if (http_parser_.get_method() == HTTP_METHOD::GET) {
 
         // HTTP GET handler
-        safe_assert(http_parser_.find_request_header(http_proto::header_options::content_length).empty());
+        SAFE_ASSERT(http_parser_.find_request_header(http_proto::header_options::content_length).empty());
 
         std::string real_path_info = http_parser_.find_request_header(http_proto::header_options::request_path_info);
         HttpGetHandler handler;
@@ -145,7 +145,7 @@ void TCPConnAsync::read_head_handler(const boost::system::error_code& ec, size_t
         r_size_ = 0;
         size_t additional_size = request_.size(); // net additional body size
 
-        safe_assert( additional_size <= len );
+        SAFE_ASSERT( additional_size <= len );
         if (len + 1 > p_buffer_->size()) {
             log_info( "relarge receive buffer size to: %d", (len + 256));
             p_buffer_->resize(len + 256);
@@ -298,8 +298,8 @@ void TCPConnAsync::do_write() override {
         return;
     }
 
-    safe_assert(w_size_);
-    safe_assert(w_pos_ < w_size_);
+    SAFE_ASSERT(w_size_);
+    SAFE_ASSERT(w_pos_ < w_size_);
 
     std::stringstream output;
     output << "strand write async_write exactly... in " << boost::this_thread::get_id();
@@ -327,7 +327,7 @@ void TCPConnAsync::write_handler(const boost::system::error_code& ec, size_t byt
         return;
     }
 
-    safe_assert(bytes_transferred > 0);
+    SAFE_ASSERT(bytes_transferred > 0);
 
     w_pos_ += bytes_transferred;
 
@@ -353,7 +353,7 @@ void TCPConnAsync::write_handler(const boost::system::error_code& ec, size_t byt
 
 void TCPConnAsync::fill_http_for_send(const char* data, size_t len, const string& status_line) {
 
-    safe_assert(data && len);
+    SAFE_ASSERT(data && len);
 
     if (!data || !len) {
         log_err("Check send data...");
@@ -464,13 +464,13 @@ void TCPConnAsync::set_ops_cancel_timeout() {
     boost::unique_lock<boost::mutex> lock(ops_cancel_mutex_);
 
     if (http_server_.ops_cancel_time_out() == 0){
-        safe_assert(!ops_cancel_timer_);
+        SAFE_ASSERT(!ops_cancel_timer_);
         return;
     }
 
     ops_cancel_timer_.reset( new boost::asio::deadline_timer (http_server_.io_service_,
                                       boost::posix_time::seconds(http_server_.ops_cancel_time_out())) );
-    safe_assert(http_server_.ops_cancel_time_out());
+    SAFE_ASSERT(http_server_.ops_cancel_time_out());
     ops_cancel_timer_->async_wait(boost::bind(&TCPConnAsync::ops_cancel_timeout_call, shared_from_this(),
                                            boost::asio::placeholders::error));
     log_debug("register ops_cancel_time_out %d sec", http_server_.ops_cancel_time_out());

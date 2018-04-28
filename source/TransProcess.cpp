@@ -104,7 +104,7 @@ int process_trans_submit(const struct trans_submit_request& req, struct trans_su
     sql_conn_ptr conn;
     helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
 
@@ -218,7 +218,7 @@ int process_trans_query(const struct trans_query_request& req, struct trans_quer
     sql_conn_ptr conn;
     helper::request_scoped_sql_conn(conn);
 
-    safe_assert(conn);
+    SAFE_ASSERT(conn);
     if (!conn){
         log_err("Get SQL connection failed!");
         ret.trans_response = TransResponseCode::kTransResponseOK;
