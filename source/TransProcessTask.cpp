@@ -268,7 +268,9 @@ int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStat
             break;
         }
 
+        int numAffected = 0;
 
+#if 0
         // 插入到完成表当中
         // 非核心事务
         int numAffected = conn->sqlconn_execute_update( va_format(
@@ -283,6 +285,8 @@ int finish_trans_process_task(sql_conn_ptr conn, EQueueDataPtr qd, enum TaskStat
                                 qd->merch_id_.c_str(), qd->trans_id_.c_str(), qd->account_type_);
             nResult = -1;
         }
+
+#endif
 
             // 从任务队列中删除
         numAffected = conn->sqlconn_execute_update( va_format(

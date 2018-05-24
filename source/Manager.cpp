@@ -114,7 +114,7 @@ bool Manager::init() {
         return false;
     }
 
-    trans_process_ptr_.reset(new TransProcessTask(4));
+    trans_process_ptr_.reset(new TransProcessTask(20));
     if (!trans_process_ptr_ || !trans_process_ptr_->init()){
         log_err("Init TransProcessTask failed!");
         return false;
