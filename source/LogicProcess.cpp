@@ -72,7 +72,7 @@ void process_logic_3( int& status, int& err_code,
         return;
     }
 
-    if ((amount % 2) && (amount < 1000000) ){
+    if (amount <= 2000000 ){
         status = TransStatus::kTransSuccess;
         err_code = TransErrInfo::kTransNoErr;
     } else {

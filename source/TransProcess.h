@@ -179,10 +179,10 @@ inline void get_db_table_index(std::string trans_id, int& tb1, int& tb2) {
 inline int get_db_table_index(std::string trans_id) {
 
     if (trans_id.size() >= 2 && CHECK_CHAR(trans_id[trans_id.size()-1]) && CHECK_CHAR(trans_id[trans_id.size()-2])) {
-        return 0;
+        return (trans_id[trans_id.size()-2] - '0')*10 + (trans_id[trans_id.size()-1] - '0');
     }
 
-    return (trans_id[trans_id.size()-2] - '0')*10 + (trans_id[trans_id.size()-1] - '0');
+    return 0; // default
 }
 #undef CHECK_CHAR
 
